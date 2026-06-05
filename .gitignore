@@ -1,0 +1,80 @@
+# =========================================
+# Python / Django
+# =========================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+.python-version
+
+# Python build outputs
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Django local database/media/static
+*.sqlite3
+db.sqlite3
+backend/media/
+backend/staticfiles/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.coverage.*
+.ruff_cache/
+.mypy_cache/
+
+# =========================================
+# Environment variables / secrets
+# =========================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# =========================================
+# Node / React
+# =========================================
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+.vite/
+*.local
+
+# =========================================
+# Logs
+# =========================================
+*.log
+logs/
+
+# =========================================
+# Docker / local runtime files
+# =========================================
+docker-data/
+*.pid
+
+# =========================================
+# OS / Editor
+# =========================================
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# =========================================
+# Temporary files
+# =========================================
+tmp/
+temp/
+.cache/
