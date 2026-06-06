@@ -43,3 +43,52 @@ The purpose is to document technical decisions, learning progress, problems, and
 - Add Django REST Framework
 - Configure pytest
 - Create the first backend test
+
+
+## Day 2 — June 06, 2026
+
+### What I did
+
+- Created feature branch `feat/backend-foundation`
+- Initialized backend with uv (Python 3.13) and automatic .venv
+- Installed Django, DRF, CORS headers, django-environ, psycopg
+- Installed dev tools: pytest, pytest-django, ruff, pre-commit
+- Created Django project `config` and `music` app
+- Split settings into base/dev/prod
+- Loaded environment variables with django-environ
+- Added /api/health/ health check endpoint
+- Configured pytest with pytest-django
+- Added sanity, database, and real API tests
+- Configured Ruff for linting/formatting
+- Configured pre-commit hooks
+- Added production fail-fast secret key check
+- Added backend/README.md
+- Ran migrations and confirmed the dev server works
+- Added API documentation with drf-spectacular (OpenAPI 3)
+- Enabled Swagger UI (/api/docs/) and ReDoc (/api/redoc/)
+- Documented the health check endpoint with @extend_schema
+- Added tests for the schema and Swagger UI endpoints
+
+### Technical decisions
+
+- Used uv for dependency and environment management instead of pip+venv
+  for reproducibility and CI/CD friendliness
+- Used split settings so dev and prod configs stay clean
+- Defaulted to SQLite for now; PostgreSQL via Docker comes later
+- manage.py defaults to dev; wsgi/asgi default to prod
+- Kept secrets in .env, never committed
+- Added a health check endpoint for future Docker/monitoring use
+
+### What I learned
+
+- How uv manages the virtual environment via `uv run`
+- Why split settings help multi-environment deployment
+- How pytest-django connects tests to Django settings
+- How to test real API endpoints with DRF APIClient
+- Why pre-commit and security fail-fast checks matter
+
+### Next step
+
+- Create the Song model
+- Create serializers and API endpoints
+- Add API tests for create/list songs
