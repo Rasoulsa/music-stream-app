@@ -2,6 +2,11 @@
 URL configuration for the music app.
 """
 
-urlpatterns = [
-    # Song endpoints will be added on Day 3
-]
+from rest_framework.routers import DefaultRouter
+
+from music.views import SongViewSet
+
+router = DefaultRouter()
+router.register(r"songs", SongViewSet, basename="song")
+
+urlpatterns = router.urls
