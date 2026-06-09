@@ -169,3 +169,39 @@ The purpose is to document technical decisions, learning progress, problems, and
 
 - Begin the React + TypeScript frontend foundation (Day 5)
 - Connect the frontend to the Song API with search/filter
+
+## Day 5 — June 09, 2026
+
+### What I did
+
+- Created feature branch `feat/frontend-foundation`
+- Scaffolded React + TypeScript app with Vite in frontend/
+- Installed axios, prettier, eslint-config-prettier
+- Configured Prettier and npm scripts (dev, build, lint, format)
+- Set up env variables (VITE_API_BASE_URL) with .env.example
+- Created folder structure (api, components, types)
+- Defined TypeScript types (HealthResponse, Song, PaginatedResponse)
+- Built a typed Axios API client
+- Created a HealthCheck component that calls /api/health/
+- Configured CORS on the backend for the React dev server
+- Verified full-stack connection (React ↔ Django) works
+- Added frontend/README.md
+
+### Technical decisions
+
+- Used Vite for fast modern React tooling
+- Centralized API calls in src/api with typed functions
+- Used env variables for the API base URL (no hardcoding)
+- Configured CORS only in dev settings for the dev server origin
+
+### What I learned
+
+- How Vite env variables work (import.meta.env, VITE_ prefix)
+- Why CORS is needed and how django-cors-headers solves it
+- How to structure a typed React + TypeScript project
+- How to connect a React frontend to a Django REST API
+
+### Next step
+
+- Build the song list page (fetch /api/songs/)
+- Add an audio player component (Day 6)
