@@ -1,0 +1,34 @@
+.app {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  text-align: center;
+}
+
+header h1 {
+  margin-bottom: 0.25rem;
+}
+
+header p {
+  color: #888;
+  margin-top: 0;
+}
+
+main {
+  margin: 2rem 0;
+}
+
+section {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+footer {
+  margin-top: 3rem;
+  color: #aaa;
+}
