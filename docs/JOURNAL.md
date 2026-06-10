@@ -205,3 +205,36 @@ The purpose is to document technical decisions, learning progress, problems, and
 
 - Build the song list page (fetch /api/songs/)
 - Add an audio player component (Day 6)
+
+
+## Day 6 — June 10, 2026
+
+### What I did
+
+- Created feature branch `feat/song-list-and-player`
+- Added getSongs() API function with search support
+- Created a duration formatting helper (seconds → m:ss)
+- Built SongCard, SearchBar, AudioPlayer, and SongList components
+- Wired the active song state in App so list and player share it
+- Implemented debounced search (400ms) wired to ?search=
+- Added loading, error, and empty states
+- Styled a clean song grid and a fixed bottom player bar
+- Verified end-to-end: search → click → audio plays in browser
+
+### Technical decisions
+
+- Lifted the "active song" state up to App (single source of truth)
+- Debounced search to avoid an API call on every keystroke
+- Used the native <audio controls> element for reliable playback
+- Used key={song.id} on <audio> to reload on song change
+
+### What I learned
+
+- React state lifting and component composition
+- useEffect cleanup for debouncing with setTimeout/clearTimeout
+- Passing query params through Axios
+- Handling loading/error/empty UI states properly
+
+### Next step
+
+- Dockerize the backend (Day 7)

@@ -2,27 +2,29 @@
  * Root application component.
  */
 
+import { useState } from 'react';
+import { AudioPlayer } from './components/AudioPlayer';
 import { HealthCheck } from './components/HealthCheck';
+import { SongList } from './components/SongList';
+import type { Song } from './types';
 import './App.css';
 
 function App() {
+  const [activeSong, setActiveSong] = useState<Song | null>(null);
+
   return (
     <div className="app">
       <header>
         <h1>🎵 Music Stream App</h1>
-        <p>Full-stack demo — Django + React + TypeScript</p>
+        {/* <p>Full-stack demo — Django + React + TypeScript</p> */}
+        <HealthCheck />
       </header>
 
       <main>
-        <section>
-          <h2>Backend Status</h2>
-          <HealthCheck />
-        </section>
+        <SongList activeSong={activeSong} onPlay={setActiveSong} />
       </main>
 
-      <footer>
-        <small>Music Stream App — portfolio project</small>
-      </footer>
+      <AudioPlayer song={activeSong} />
     </div>
   );
 }

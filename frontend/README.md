@@ -14,3 +14,4 @@ React + TypeScript frontend for the Music Stream App, built with Vite.
 ```bash
 npm install
 cp .env.example .env
+```
