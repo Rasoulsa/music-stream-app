@@ -238,3 +238,56 @@ The purpose is to document technical decisions, learning progress, problems, and
 ### Next step
 
 - Dockerize the backend (Day 7)
+
+## Day 7 — June 13, 2026
+
+### What I did
+
+- Created feature branch `feat/dockerize-backend`
+- Added gunicorn (production WSGI server) and whitenoise (static files)
+- Wrote a multi-stage Dockerfile using the official uv image
+- Added a .dockerignore to keep the image small and exclude secrets
+- Created .env.docker (git-ignored) and .env.docker.example (committed)
+- Made production settings Docker-friendly:
+  - env-driven DJANGO_ALLOWED_HOSTS
+  - SQLite stored in a writable /app/data directory (for now)
+  - HTTPS hardening gated behind DJANGO_SECURE_SSL flag
+  - kept the secret-key fail-fast check
+- Added WhiteNoise middleware for static files
+- Ran the container as a non-root user with a proper home directory
+- Added a container-level HEALTHCHECK
+- Built the image and ran the backend in Docker
+- Verified /api/health/ works from inside the container
+
+### Problems I solved
+
+- "unable to open database file": SQLite couldn't be written by the
+  non-root user → fixed by creating a writable /app/data directory
+  owned by the app user.
+- Gunicorn "Permission denied: /home/app": the system user had no home
+  directory → fixed with useradd --create-home.
+- "port is already allocated": a leftover container held port 8000 →
+  fixed by stopping running containers (docker stop $(docker ps -q)).
+
+### Technical decisions
+
+- Multi-stage build (builder + runtime) for a small, secure image.
+- Ran as a non-root user for security best practice.
+- Gunicorn with 3 workers instead of Django's dev server.
+- Kept secrets out of the image; passed env vars at runtime.
+- Gated HTTPS hardening behind an env flag so the production image can
+  be tested locally over plain HTTP.
+- Stayed on SQLite for now; PostgreSQL comes with Docker Compose.
+
+### What I learned
+
+- The difference between a Dockerfile, image, and container.
+- How multi-stage builds and layer caching work.
+- Why containers run as non-root and how that surfaces file-permission
+  issues (and why a real DB server like PostgreSQL is better here).
+- How to debug port conflicts with lsof and docker ps.
+
+### Next step
+
+- Docker Compose to orchestrate the backend with one command, add
+  volumes for persistence, and prepare for PostgreSQL (Day 8).
