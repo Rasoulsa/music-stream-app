@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Local database & media (don't bake these into the image)
+db.sqlite3
+media/
+
+# Environment files (secrets!)
+.env
+.env.*
+!.env.example
+
+# Git & docs
+.git/
+.gitignore
+README.md
+
+# Editor
+.vscode/
+.idea/
+.DS_Store
+
+# CI
+.github/
