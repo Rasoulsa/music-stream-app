@@ -291,3 +291,54 @@ The purpose is to document technical decisions, learning progress, problems, and
 
 - Docker Compose to orchestrate the backend with one command, add
   volumes for persistence, and prepare for PostgreSQL (Day 8).
+
+## Day 8 — June 15, 2026
+
+### What I did
+
+- Created feature branch `feat/docker-compose-postgres`.
+- Added Docker Compose to run the full backend stack with one command.
+- Added a PostgreSQL 16 service running in its own container.
+- Added a persistent Docker volume for the PostgreSQL data.
+- Switched the backend database from SQLite to PostgreSQL.
+- Updated production settings to read PostgreSQL config from environment variables.
+- Added PostgreSQL environment variables to `.env.docker.example` and `.env.docker`.
+- Configured the backend to wait for the database to be healthy before starting.
+- Added a PostgreSQL health check using `pg_isready`.
+- Built and started the full stack with `docker compose up --build`.
+- Verified that migrations run automatically against PostgreSQL.
+- Verified that Gunicorn starts and serves the API.
+- Verified the API health endpoint and Swagger docs.
+- Tuned the Gunicorn worker timeout settings.
+- Improved the container health check to send a real HTTP request.
+
+### Problems I solved
+
+- Saw repeated `WORKER TIMEOUT` and `no URI read` errors in Gunicorn logs.
+  - Cause: the health check probe opened the socket without sending a full HTTP request, and the default Gunicorn worker timeout was too aggressive.
+  - Solution: changed the container health check to make a proper HTTP GET to `/api/health/`, and added explicit Gunicorn timeout settings.
+  - Confirmed the application itself was always working by testing the API directly.
+
+### Technical decisions
+
+- Used Docker Compose so the whole backend stack starts with one command.
+- Used PostgreSQL 16 to match a realistic production database.
+- Used the `db` service name as the database host, so containers communicate over the Compose network.
+- Used a named volume for the database so data persists across restarts.
+- Used `depends_on` with a health condition so the backend only starts after the database is ready.
+- Kept secrets in `.env.docker` and out of Git.
+
+### What I learned
+
+- How Docker Compose connects multiple containers on one network.
+- How containers reach each other by service name instead of IP.
+- How to run PostgreSQL in a container with a persistent volume.
+- Why the backend should wait for the database to be healthy first.
+- How to debug Gunicorn worker timeouts and health check noise.
+- The difference between stopping containers and deleting volumes.
+
+### Next step
+
+- Start building user accounts, authentication, and profiles.
+- Connect songs to their owner users.
+- Add public and private visibility for songs.

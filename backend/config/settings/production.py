@@ -2,6 +2,8 @@
 Production settings.
 """
 
+import environ
+
 from .base import *  # noqa: F401,F403
 from .base import BASE_DIR, env  # noqa: F401
 
@@ -21,10 +23,23 @@ ALLOWED_HOSTS = env.list(  # noqa: F405
 # Database
 # NOTE: Still SQLite for Day 7-8. Switches to PostgreSQL on Day 9.
 # ----------------------------------------------------------------------
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.sqlite3",
+#         "NAME": "/app/data/db.sqlite3",
+#     }
+# }
+
+env = environ.Env()
+
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": "/app/data/db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": env("POSTGRES_DB"),
+        "USER": env("POSTGRES_USER"),
+        "PASSWORD": env("POSTGRES_PASSWORD"),
+        "HOST": env("POSTGRES_HOST", default="db"),
+        "PORT": env("POSTGRES_PORT", default="5432"),
     }
 }
 
