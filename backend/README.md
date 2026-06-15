@@ -144,3 +144,87 @@ http://localhost:8001/api/health/
 - The container runs as a non-root `app` user.
 - SQLite is stored in `/app/data` for local Docker testing.
 - PostgreSQL will be added later with Docker Compose.
+
+
+## Running with Docker Compose
+
+The full backend stack (Django + PostgreSQL) can be started with a single command using Docker Compose.
+
+### Set up the environment file
+
+```bash
+cp backend/.env.docker.example backend/.env.docker
+# then edit backend/.env.docker with your values
+```
+
+### Start the stack
+
+From the project root:
+
+```bash
+docker compose up --build
+```
+
+This starts two services:
+
+- `db` — PostgreSQL 16 with a persistent volume
+- `backend` — Django backend served with Gunicorn
+
+The backend waits until the database is healthy before starting.
+
+The API is available at:
+
+- Health: http://localhost:8000/api/health/
+- Docs: http://localhost:8000/api/docs/
+- Songs: http://localhost:8000/api/songs/
+
+### Run in the background
+
+```bash
+docker compose up --build -d
+```
+
+### Stop the stack
+
+Stop and remove the containers, but keep the database volume:
+
+```bash
+docker compose down
+```
+
+Stop and also delete the database volume (this wipes all data):
+
+```bash
+docker compose down -v
+```
+
+### Useful commands
+
+```bash
+docker compose ps                       # list services
+docker compose logs -f                  # follow all logs
+docker compose logs -f backend          # follow backend logs
+docker compose exec backend bash        # shell inside the backend
+docker compose exec db psql -U music    # open the PostgreSQL shell
+docker compose restart backend          # restart the backend
+```
+
+### Create a superuser
+
+```bash
+docker compose exec backend python manage.py createsuperuser
+```
+
+### Data persistence
+
+PostgreSQL data is stored in a named Docker volume (`postgres_data`).
+Data survives `docker compose down` and is only removed when you run
+`docker compose down -v`.
+
+### Notes
+
+- Migrations run automatically when the backend container starts.
+- The backend runs with Gunicorn, not Django's development server.
+- The backend connects to PostgreSQL using the `db` service name.
+- Database credentials are provided through `backend/.env.docker`.
+- The real `.env.docker` file is kept out of Git.
