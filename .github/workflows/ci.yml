@@ -1,0 +1,82 @@
+# .github/workflows/ci.yml
+#
+# Continuous Integration pipeline for the Music Stream App backend.
+# Runs on every push to main and on every pull request.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ═══════════════════════════════════════════════════════════
+  # JOB 1: Lint + Test the backend
+  # ═══════════════════════════════════════════════════════════
+  backend-test:
+    name: Backend — Lint & Test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./backend
+
+    # Minimal env vars needed for Django settings to load.
+    # Tests use SQLite (inherited from base.py), so no DB service needed.
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+      DJANGO_SECRET_KEY: ci-test-secret-key-not-for-production
+      DEBUG: "True"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.11.19"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Run pytest
+        run: uv run pytest -v
+
+  # ═══════════════════════════════════════════════════════════
+  # JOB 2: Verify the Docker image builds successfully
+  # ═══════════════════════════════════════════════════════════
+  docker-build:
+    name: Docker — Build Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: false
+          tags: music-backend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
