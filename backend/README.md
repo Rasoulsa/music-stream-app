@@ -1,5 +1,7 @@
 # Backend — Music Stream App
 
+[![CI](https://github.com/Rasoulsa/music-stream-app/actions/workflows/ci.yml/badge.svg)](https://github.com/Rasoulsa/music-stream-app/actions/workflows/ci.yml)
+
 Django + Django REST Framework backend.
 
 ## Requirements
