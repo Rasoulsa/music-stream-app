@@ -3,11 +3,14 @@ Tests for search, filtering, and ordering on the Song API.
 """
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from music.models import Song
+
+User = get_user_model()
 
 
 @pytest.fixture
@@ -16,7 +19,16 @@ def api_client():
 
 
 @pytest.fixture
-def songs(db):
+def user(db):
+    return User.objects.create_user(
+        username="faraz",
+        email="faraz@example.com",
+        password="StrongPass123!",
+    )
+
+
+@pytest.fixture
+def songs(db, user):
     """Create a set of songs for filtering tests."""
     audio = SimpleUploadedFile("a.mp3", b"x", content_type="audio/mpeg")
     Song.objects.create(
@@ -25,6 +37,8 @@ def songs(db):
         album="Help",
         audio_file=audio,
         duration_seconds=125,
+        owner=user,
+        is_public=True,
     )
     Song.objects.create(
         title="Let It Be",
@@ -32,6 +46,8 @@ def songs(db):
         album="Let It Be",
         audio_file=audio,
         duration_seconds=243,
+        owner=user,
+        is_public=True,
     )
     Song.objects.create(
         title="Bohemian Rhapsody",
@@ -39,6 +55,8 @@ def songs(db):
         album="A Night at the Opera",
         audio_file=audio,
         duration_seconds=354,
+        owner=user,
+        is_public=True,
     )
     Song.objects.create(
         title="Love Story",
@@ -46,6 +64,8 @@ def songs(db):
         album="Fearless",
         audio_file=audio,
         duration_seconds=235,
+        owner=user,
+        is_public=True,
     )
 
 

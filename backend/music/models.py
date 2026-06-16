@@ -3,6 +3,7 @@
 Models for the music app.
 """
 
+from django.conf import settings
 from django.db import models
 
 
@@ -26,6 +27,8 @@ class Song(models.Model):
     )
     audio_file = models.FileField(
         upload_to="songs/audio/",
+        blank=True,
+        null=True,
         help_text="The audio file for the song.",
     )
     cover_image = models.ImageField(
@@ -37,6 +40,17 @@ class Song(models.Model):
     duration_seconds = models.PositiveIntegerField(
         default=0,
         help_text="Duration of the song in seconds.",
+    )
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="songs",
+        help_text="The user who uploaded this song.",
+    )
+    is_public = models.BooleanField(
+        default=True,
+        help_text="If true, the song is visible in the public feed. "
+        "If false, only the owner can see it.",
     )
     created_at = models.DateTimeField(
         auto_now_add=True,

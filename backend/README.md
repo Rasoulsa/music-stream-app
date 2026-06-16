@@ -228,3 +228,47 @@ Data survives `docker compose down` and is only removed when you run
 - The backend connects to PostgreSQL using the `db` service name.
 - Database credentials are provided through `backend/.env.docker`.
 - The real `.env.docker` file is kept out of Git.
+
+
+## Authentication
+
+The API uses JWT authentication.
+
+### Register
+
+```bash
+POST /api/auth/register/
+{ "username": "...", "email": "...", "password": "..." }
+```
+
+### Login
+
+```bash
+POST /api/auth/login/
+{ "username": "...", "password": "..." }
+```
+
+Returns `access` and `refresh` tokens.
+
+### Use the token
+
+Add this header to authenticated requests:
+
+```text
+Authorization: Bearer <access_token>
+```
+
+### Refresh the token
+
+```bash
+POST /api/auth/refresh/
+{ "refresh": "<refresh_token>" }
+```
+
+## Song ownership and visibility
+
+- Each song belongs to the user who created it.
+- Songs can be public or private (`is_public`).
+- Anonymous users see only public songs.
+- Authenticated users see public songs plus their own private songs.
+- Only the owner can edit or delete their songs.

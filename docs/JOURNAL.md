@@ -342,3 +342,42 @@ The purpose is to document technical decisions, learning progress, problems, and
 - Start building user accounts, authentication, and profiles.
 - Connect songs to their owner users.
 - Add public and private visibility for songs.
+
+## Day 9 — June 16, 2026
+
+### What I did
+
+- Created feature branch `feat/auth-and-song-ownership`.
+- Added JWT authentication using djangorestframework-simplejwt.
+- Added a user registration endpoint.
+- Added login and token refresh endpoints.
+- Added an `owner` foreign key to the Song model.
+- Added an `is_public` field for public/private songs.
+- Added a custom `IsOwnerOrReadOnly` permission.
+- Restricted song queryset so users only see public songs plus their own.
+- Restricted song editing and deletion to the owner.
+- Updated serializers to expose the owner as read-only.
+- Recreated the database to apply the new owner field cleanly.
+- Wrote tests for registration, login, ownership, and visibility.
+- Verified all endpoints manually with curl and Swagger.
+- Updated README with authentication and ownership docs.
+
+### Technical decisions
+
+- Chose JWT over session auth because the frontend will be a separate React app.
+- Used a read-only owner field, set automatically from the request user.
+- Used object-level permissions to enforce ownership.
+- Filtered the queryset so private songs never leak to other users.
+
+### What I learned
+
+- How JWT access and refresh tokens work in DRF.
+- How to attach the request user as the owner on create.
+- How object-level permissions differ from view-level permissions.
+- How to filter querysets based on the authenticated user.
+
+### Next step
+
+- Add user profile endpoints.
+- Build the public feed page logic.
+- Add song file upload handling.

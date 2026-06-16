@@ -11,13 +11,33 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
 
-from music.views import health_check
+from music.views import RegisterView, health_check
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     # Health check
     path("api/health/", health_check, name="health-check"),
+    # Authentication
+    path(
+        "api/auth/register/",
+        RegisterView.as_view(),
+        name="register",
+    ),
+    path(
+        "api/auth/login/",
+        TokenObtainPairView.as_view(),
+        name="token-obtain-pair",
+    ),
+    path(
+        "api/auth/refresh/",
+        TokenRefreshView.as_view(),
+        name="token-refresh",
+    ),
     # API endpoints
     path("api/", include("music.urls")),
     # OpenAPI schema (raw JSON/YAML)
@@ -36,9 +56,7 @@ urlpatterns = [
     ),
 ]
 
-# Serve uploaded media files during development only
-if settings.DEBUG:
-    urlpatterns += static(
-        settings.MEDIA_URL,
-        document_root=settings.MEDIA_ROOT,
-    )
+# Serve uploaded media files
+# NOTE: In production with nginx, nginx should serve /media/ directly.
+# For local Docker testing over HTTP, Django/Gunicorn handles it here.
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
