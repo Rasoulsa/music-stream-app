@@ -381,3 +381,26 @@ The purpose is to document technical decisions, learning progress, problems, and
 - Add user profile endpoints.
 - Build the public feed page logic.
 - Add song file upload handling.
+
+## Day 10 — CI/CD Foundation with GitHub Actions
+
+### Completed
+- Added GitHub Actions CI workflow.
+- CI runs automatically on pull requests and pushes to `main`.
+- Added backend quality checks:
+  - Ruff format check
+  - Ruff lint check
+  - Pytest test suite
+- Added Docker image build verification.
+- Merged CI pipeline through a pull request.
+- Deleted the feature branch after merge.
+
+### Local verification
+- Ruff format check passed.
+- Ruff lint passed.
+- Pytest passed with 31 tests.
+
+### Notes
+- Current CI uses SQLite test database through `config.settings.dev`.
+- Future improvement: run tests against PostgreSQL in CI to match production more closely.
+- Future CD step can deploy the application after CI passes.
