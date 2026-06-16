@@ -46,6 +46,10 @@ DATABASES = {
 # Static files (served by WhiteNoise)
 STATIC_ROOT = BASE_DIR / "staticfiles"  # noqa: F405
 
+# Media files (user uploads)
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 # ----------------------------------------------------------------------
 # Production security hardening
 #

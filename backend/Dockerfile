@@ -41,7 +41,7 @@ COPY --from=builder --chown=app:app /app /app
 
 # Create a writable directory for the SQLite database and media,
 # owned by the non-root user
-RUN mkdir -p /app/data && chown -R app:app /app/data
+RUN mkdir -p /app/data /app/media && chown -R app:app /app/data /app/media
 
 # Switch to the non-root user
 USER app
