@@ -68,3 +68,21 @@ class Song(models.Model):
 
     def __str__(self) -> str:
         return f"{self.title} — {self.artist}"
+
+
+class Profile(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="profile",
+    )
+    display_name = models.CharField(max_length=80, blank=True)
+    bio = models.TextField(max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Profile<{self.user.username}>"

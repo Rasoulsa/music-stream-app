@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from music.models import Song
+from music.models import Profile, Song
 
 User = get_user_model()
 
@@ -66,3 +66,47 @@ class SongSerializer(serializers.ModelSerializer):
         if not value.strip():
             raise serializers.ValidationError("Artist cannot be empty.")
         return value
+
+
+class ProfileSerializer(serializers.ModelSerializer):
+    """Own profile (authenticated user) — includes email + total song count."""
+
+    username = serializers.CharField(source="user.username", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
+    song_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Profile
+        fields = [
+            "username",
+            "email",
+            "display_name",
+            "bio",
+            "song_count",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["username", "email", "created_at", "updated_at"]
+
+    def get_song_count(self, obj: Profile) -> int:
+        return obj.user.songs.count()
+
+
+class PublicProfileSerializer(serializers.ModelSerializer):
+    """Public profile — no email, only public song count."""
+
+    username = serializers.CharField(source="user.username", read_only=True)
+    public_song_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Profile
+        fields = [
+            "username",
+            "display_name",
+            "bio",
+            "public_song_count",
+            "created_at",
+        ]
+
+    def get_public_song_count(self, obj: Profile) -> int:
+        return obj.user.songs.filter(is_public=True).count()
