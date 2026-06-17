@@ -404,3 +404,35 @@ The purpose is to document technical decisions, learning progress, problems, and
 - Current CI uses SQLite test database through `config.settings.dev`.
 - Future improvement: run tests against PostgreSQL in CI to match production more closely.
 - Future CD step can deploy the application after CI passes.
+
+## Day 11 — User Profiles & Public Feed
+
+### Goal
+Complete the user-centric backend: profiles, public feed,
+per-user public songs, and a "my songs" endpoint.
+
+### Added
+- `Profile` model (one-to-one with User): display_name, bio, created_at/updated_at.
+- `post_save` signal auto-creates a Profile on user registration.
+- Data migration backfilling profiles for existing users.
+- `related_name="songs"` on `Song.owner` for clean reverse queries.
+
+### Endpoints
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET    | `/api/users/me/`              | ✅ | Own profile (email + song count) |
+| PATCH  | `/api/users/me/`              | ✅ | Update display_name / bio |
+| GET    | `/api/users/{username}/`      | ❌ | Public profile (no email) |
+| GET    | `/api/users/{username}/songs/`| ❌ | User's public songs |
+| GET    | `/api/songs/mine/`            | ✅ | My songs (public + private) |
+| GET    | `/api/feed/`                  | ❌ | All public songs (paginated, filterable) |
+
+### Quality
+- Tested locally (SQLite) and in Docker (PostgreSQL).
+- `select_related("owner")` avoids N+1 queries on listing endpoints.
+- drf-spectacular tags + summaries keep Swagger clean and grouped.
+- Ruff format + lint clean; pre-commit hooks passed; CI green.
+
+### Notes
+- Used `settings.AUTH_USER_MODEL` throughout (future custom-user-safe).
+- Avatar/image deferred to the MinIO storage milestone.
