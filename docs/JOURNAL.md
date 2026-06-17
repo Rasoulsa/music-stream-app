@@ -436,3 +436,30 @@ per-user public songs, and a "my songs" endpoint.
 ### Notes
 - Used `settings.AUTH_USER_MODEL` throughout (future custom-user-safe).
 - Avatar/image deferred to the MinIO storage milestone.
+
+
+## Day 12 — Harden CI: Tests Against PostgreSQL
+
+### Goal
+Make CI run pytest against a real PostgreSQL 16 service — matching the
+production database — instead of SQLite. Eliminates the "passes on
+SQLite but breaks on PostgreSQL" class of bugs.
+
+### Added
+- `config/settings/ci.py` — dedicated CI settings (PostgreSQL via env vars,
+  fast MD5 password hasher for test speed).
+- Split CI into two jobs:
+  - `lint` — Ruff lint + format check.
+  - `test` — runs only if lint passes; spins up postgres:16 service,
+    runs migrations, then pytest.
+- PostgreSQL service with health checks so tests wait for DB readiness.
+- `uv sync --frozen` for reproducible installs from the lockfile.
+
+### Why it matters
+- Local dev → SQLite (fast)
+- Docker / CI / Production → PostgreSQL (parity)
+- Migrations are now validated against PostgreSQL on every PR.
+
+### Quality
+- Verified locally via `docker compose exec backend pytest -v`.
+- All CI checks green on the PR.

@@ -1,8 +1,3 @@
-# .github/workflows/ci.yml
-#
-# Continuous Integration pipeline for the Music Stream App backend.
-# Runs on every push to main and on every pull request.
-
 name: CI
 
 on:
@@ -11,72 +6,77 @@ on:
   pull_request:
     branches: [main]
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  # ═══════════════════════════════════════════════════════════
-  # JOB 1: Lint + Test the backend
-  # ═══════════════════════════════════════════════════════════
-  backend-test:
-    name: Backend — Lint & Test
+  lint:
+    name: Lint & Format
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: ./backend
-
-    # Minimal env vars needed for Django settings to load.
-    # Tests use SQLite (inherited from base.py), so no DB service needed.
-    env:
-      DJANGO_SETTINGS_MODULE: config.settings.dev
-      DJANGO_SECRET_KEY: ci-test-secret-key-not-for-production
-      DEBUG: "True"
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
-        with:
-          version: "0.11.19"
 
       - name: Set up Python
         run: uv python install 3.13
 
       - name: Install dependencies
+        working-directory: backend
         run: uv sync --frozen
 
-      - name: Ruff format check
-        run: uv run ruff format --check .
-
       - name: Ruff lint
+        working-directory: backend
         run: uv run ruff check .
 
-      - name: Run pytest
-        run: uv run pytest -v
+      - name: Ruff format check
+        working-directory: backend
+        run: uv run ruff format --check .
 
-  # ═══════════════════════════════════════════════════════════
-  # JOB 2: Verify the Docker image builds successfully
-  # ═══════════════════════════════════════════════════════════
-  docker-build:
-    name: Docker — Build Image
+  test:
+    name: Tests (PostgreSQL)
     runs-on: ubuntu-latest
+    needs: lint
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user -d test_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.ci
+      SECRET_KEY: ci-insecure-test-key
+      POSTGRES_DB: test_db
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_pass
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
-      - name: Build backend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./backend
-          push: false
-          tags: music-backend:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Run migrations
+        working-directory: backend
+        run: uv run python manage.py migrate --settings=config.settings.ci
+
+      - name: Run tests
+        working-directory: backend
+        run: uv run pytest -v --ds=config.settings.ci
