@@ -274,3 +274,25 @@ POST /api/auth/refresh/
 - Anonymous users see only public songs.
 - Authenticated users see public songs plus their own private songs.
 - Only the owner can edit or delete their songs.
+
+
+### Profiles & Feed
+- `GET/PATCH /api/users/me/` — manage your own profile (auth required)
+- `GET /api/users/{username}/` — public profile
+- `GET /api/users/{username}/songs/` — a user's public songs
+- `GET /api/songs/mine/` — your songs, public + private (auth required)
+- `GET /api/feed/` — public feed of all public songs (paginated, filterable)
+
+
+## Continuous Integration
+
+CI runs on every push and pull request:
+
+1. **Lint** — Ruff lint + format checks.
+2. **Test** — runs against PostgreSQL 16 (matching production):
+   - applies migrations
+   - runs the full pytest suite
+
+Tests use a dedicated `config/settings/ci.py` configuration.
+
+![CI](https://github.com/Rasoulsa/music-stream-app/actions/workflows/ci.yml/badge.svg)
