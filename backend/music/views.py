@@ -4,18 +4,29 @@ Views for the music app.
 
 from django.contrib.auth import get_user_model
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
-from rest_framework import generics, permissions, viewsets
+from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from music.filters import SongFilter
 from music.models import Song
 from music.permissions import IsOwnerOrReadOnly
-from music.serializers import RegisterSerializer, SongSerializer
+from music.serializers import (
+    ProfileSerializer,
+    PublicProfileSerializer,
+    RegisterSerializer,
+    SongSerializer,
+)
 
 User = get_user_model()
+
+
+# ── Health ─────────────────────────────────────────────────────────────────────
 
 
 @extend_schema(
@@ -37,10 +48,11 @@ User = get_user_model()
 )
 @api_view(["GET"])
 def health_check(request):
-    """
-    Simple health check endpoint.
-    """
+    """Simple health check endpoint."""
     return Response({"status": "ok", "service": "music-stream-app"})
+
+
+# ── Authentication ─────────────────────────────────────────────────────────────
 
 
 @extend_schema(tags=["Authentication"])
@@ -55,6 +67,9 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = (permissions.AllowAny,)
+
+
+# ── Songs ──────────────────────────────────────────────────────────────────────
 
 
 @extend_schema(tags=["Songs"])
@@ -83,19 +98,12 @@ class SongViewSet(viewsets.ModelViewSet):
 
     serializer_class = SongSerializer
     parser_classes = [MultiPartParser, FormParser]
-
     permission_classes = (
         permissions.IsAuthenticatedOrReadOnly,
         IsOwnerOrReadOnly,
     )
-
-    # Filtering
     filterset_class = SongFilter
-
-    # Free-text search
     search_fields = ["title", "artist", "album"]
-
-    # Sorting
     ordering_fields = [
         "title",
         "artist",
@@ -109,24 +117,135 @@ class SongViewSet(viewsets.ModelViewSet):
         """
         Return songs based on the current user's authentication state.
 
-        Anonymous users:
-        - only public songs
-
-        Authenticated users:
-        - all public songs
-        - their own private songs
+        Anonymous users  → only public songs
+        Authenticated    → all public songs + their own private songs
         """
-        user = self.request.user
+        if getattr(self, "swagger_fake_view", False):
+            return Song.objects.none()
 
-        base_queryset = Song.objects.select_related("owner")
+        user = self.request.user
+        base = Song.objects.select_related("owner")
 
         if user.is_authenticated:
-            return base_queryset.filter(Q(is_public=True) | Q(owner=user))
-
-        return base_queryset.filter(is_public=True)
+            return base.filter(Q(is_public=True) | Q(owner=user))
+        return base.filter(is_public=True)
 
     def perform_create(self, serializer):
-        """
-        Automatically set the current authenticated user as the song owner.
-        """
+        """Automatically set the current authenticated user as the song owner."""
         serializer.save(owner=self.request.user)
+
+
+# ── Profiles ───────────────────────────────────────────────────────────────────
+
+
+@extend_schema(tags=["profiles"])
+class MyProfileView(APIView):
+    """Retrieve or update the authenticated user's own profile."""
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        responses=ProfileSerializer,
+        summary="Get my profile",
+    )
+    def get(self, request):
+        serializer = ProfileSerializer(request.user.profile)
+        return Response(serializer.data)
+
+    @extend_schema(
+        request=ProfileSerializer,
+        responses=ProfileSerializer,
+        summary="Update my profile",
+    )
+    def patch(self, request):
+        serializer = ProfileSerializer(
+            request.user.profile,
+            data=request.data,
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=["profiles"],
+    responses=PublicProfileSerializer,
+    summary="Get public profile by username",
+)
+class PublicProfileView(generics.RetrieveAPIView):
+    """Public profile of any user by username (no email exposed)."""
+
+    permission_classes = [AllowAny]
+    serializer_class = PublicProfileSerializer
+
+    def get_object(self):
+        user = get_object_or_404(User, username=self.kwargs["username"])
+        return user.profile
+
+
+# ── Per-user public songs ──────────────────────────────────────────────────────
+
+
+@extend_schema(
+    tags=["songs"],
+    summary="List a user's public songs",
+    responses=SongSerializer(many=True),
+)
+class UserPublicSongsView(generics.ListAPIView):
+    """List a given user's PUBLIC songs only."""
+
+    permission_classes = [AllowAny]
+    serializer_class = SongSerializer
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Song.objects.none()
+        user = get_object_or_404(User, username=self.kwargs["username"])
+        return Song.objects.filter(owner=user, is_public=True).select_related("owner")
+
+
+# ── My songs ───────────────────────────────────────────────────────────────────
+
+
+@extend_schema(
+    tags=["songs"],
+    summary="List my songs (public + private)",
+    responses=SongSerializer(many=True),
+)
+class MySongsView(generics.ListAPIView):
+    """Authenticated user's own songs — both public and private."""
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = SongSerializer
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Song.objects.none()
+        return Song.objects.filter(owner=self.request.user).select_related("owner")
+
+
+# ── Feed ───────────────────────────────────────────────────────────────────────
+
+
+@extend_schema(
+    tags=["feed"],
+    summary="Public feed of all public songs",
+    responses=SongSerializer(many=True),
+)
+class FeedView(generics.ListAPIView):
+    """Public feed — all public songs from all users, paginated + filterable."""
+
+    permission_classes = [AllowAny]
+    serializer_class = SongSerializer
+    queryset = Song.objects.filter(is_public=True).select_related("owner")
+    filterset_class = SongFilter
+    search_fields = ["title", "artist", "album"]
+    ordering_fields = [
+        "title",
+        "artist",
+        "duration_seconds",
+        "created_at",
+        "updated_at",
+    ]
+    ordering = ["-created_at"]
