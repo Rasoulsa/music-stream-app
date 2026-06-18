@@ -1,5 +1,8 @@
 # 🎵 Music Stream App
 
+![CI](https://github.com/Rasoulsa/music-stream-app/actions/workflows/ci.yml/badge.svg)
+![Coverage](https://codecov.io/gh/Rasoulsa/music-stream-app/branch/main/graph/badge.svg)
+
 A full-stack, dockerized music streaming application built as a professional portfolio project.
 
 The goal of this project is to demonstrate practical backend development, frontend development, Docker, testing, CI/CD, and real deployment practices.
@@ -82,6 +85,23 @@ Testing setup will include:
 
 - Backend: pytest + pytest-django
 - Frontend: Vitest + React Testing Library
+
+### Test Coverage
+
+Coverage is measured with `pytest-cov` and enforced in CI (minimum 85%).
+
+# Run tests with coverage report
+
+```bash
+uv run pytest --cov --cov-report=term-missing
+```
+
+# Generate an HTML report
+
+```bash
+uv run pytest --cov --cov-report=html
+open htmlcov/index.html
+```
 
 ## 📦 Deployment Plan
 
