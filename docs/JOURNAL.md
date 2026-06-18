@@ -463,3 +463,27 @@ SQLite but breaks on PostgreSQL" class of bugs.
 ### Quality
 - Verified locally via `docker compose exec backend pytest -v`.
 - All CI checks green on the PR.
+
+## Day 13 — Test Coverage Reporting
+
+### Goal
+Measure test coverage, enforce a minimum threshold in CI, and display
+a live coverage badge — signaling engineering discipline.
+
+### Added
+- `pytest-cov` dev dependency.
+- Coverage config in `pyproject.toml`:
+  - branch coverage enabled (if/else paths, not just lines)
+  - omits migrations, tests, settings, boilerplate
+  - `--cov-fail-under=85` enforced on every test run
+- Codecov integration in CI (`coverage.xml` upload).
+- HTML report (`htmlcov/`) for local visual inspection (gitignored).
+
+### Results
+- Coverage: ~93% (branch + line).
+- CI now fails if coverage drops below 85%.
+
+### Why it matters
+- Coverage is enforced, not optional — quality can't silently regress.
+- Branch coverage catches untested code paths, not just unexecuted lines.
+- Honest, focused coverage (excludes auto-generated/config code).

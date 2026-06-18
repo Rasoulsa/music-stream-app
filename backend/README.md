@@ -1,7 +1,5 @@
 # Backend — Music Stream App
 
-[![CI](https://github.com/Rasoulsa/music-stream-app/actions/workflows/ci.yml/badge.svg)](https://github.com/Rasoulsa/music-stream-app/actions/workflows/ci.yml)
-
 Django + Django REST Framework backend.
 
 ## Requirements
@@ -32,11 +30,15 @@ API health check:
 http://127.0.0.1:8000/api/health/
 ```
 
+
 ## Testing
+
+Run the test suite:
 
 ```bash
 uv run pytest
 ```
+
 
 ## Linting & Formatting
 
@@ -295,4 +297,4 @@ CI runs on every push and pull request:
 
 Tests use a dedicated `config/settings/ci.py` configuration.
 
-![CI](https://github.com/Rasoulsa/music-stream-app/actions/workflows/ci.yml/badge.svg)
+See the [root README](../README.md) for build status and coverage badges.
