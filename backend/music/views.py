@@ -3,11 +3,12 @@ Views for the music app.
 """
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions, status, viewsets
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -30,26 +31,39 @@ User = get_user_model()
 
 
 @extend_schema(
+    tags=["health"],
     summary="Health check",
-    description="Returns the service status. Used by load balancers, "
-    "Docker healthchecks, and monitoring.",
+    description="Returns the service status and cache health. Used by load "
+    "balancers, Docker healthchecks, and monitoring.",
     responses={
         200: {
             "type": "object",
             "properties": {
                 "status": {"type": "string", "example": "ok"},
-                "service": {
-                    "type": "string",
-                    "example": "music-stream-app",
-                },
+                "service": {"type": "string", "example": "music-stream-app"},
+                "cache": {"type": "string", "example": "ok"},
             },
         }
     },
 )
 @api_view(["GET"])
+@permission_classes([AllowAny])
 def health_check(request):
-    """Simple health check endpoint."""
-    return Response({"status": "ok", "service": "music-stream-app"})
+    """Simple health check — reports service name and cache status."""
+    cache_ok = False
+    try:
+        cache.set("healthcheck", "ok", timeout=5)
+        cache_ok = cache.get("healthcheck") == "ok"
+    except Exception:  # pragma: no cover
+        cache_ok = False
+
+    return Response(
+        {
+            "status": "ok",
+            "service": "music-stream-app",
+            "cache": "ok" if cache_ok else "unavailable",
+        }
+    )
 
 
 # ── Authentication ─────────────────────────────────────────────────────────────
@@ -235,11 +249,12 @@ class MySongsView(generics.ListAPIView):
     responses=SongSerializer(many=True),
 )
 class FeedView(generics.ListAPIView):
-    """Public feed — all public songs from all users, paginated + filterable."""
+    """Public feed — all public songs, paginated, filterable, cached."""
 
     permission_classes = [AllowAny]
     serializer_class = SongSerializer
     queryset = Song.objects.filter(is_public=True).select_related("owner")
+
     filterset_class = SongFilter
     search_fields = ["title", "artist", "album"]
     ordering_fields = [
@@ -250,3 +265,18 @@ class FeedView(generics.ListAPIView):
         "updated_at",
     ]
     ordering = ["-created_at"]
+
+    def list(self, request, *args, **kwargs):
+        # Only cache the unfiltered, first-page default view.
+        # Filtered/searched/paginated queries bypass cache (always fresh).
+        if request.query_params:
+            return super().list(request, *args, **kwargs)
+
+        cache_key = "feed:default"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, timeout=60)  # 60s TTL
+        return response

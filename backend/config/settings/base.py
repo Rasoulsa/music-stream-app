@@ -2,6 +2,7 @@
 Base settings shared across all environments.
 """
 
+import os
 from datetime import timedelta
 from pathlib import Path
 
@@ -180,6 +181,33 @@ else:
     }
     MEDIA_URL = "media/"
     MEDIA_ROOT = BASE_DIR / "media"
+
+
+# ------------------------------------------------------------------
+# Cache (Redis if REDIS_URL is set, else local-memory fallback)
+# ------------------------------------------------------------------
+REDIS_URL = os.environ.get("REDIS_URL", "")
+
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            },
+            "KEY_PREFIX": "music",
+            "TIMEOUT": 300,  # default 5 minutes
+        }
+    }
+else:
+    # Local dev fallback — no Redis needed
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "music-locmem",
+        }
+    }
 
 # -----------------------------------------------------------------------------
 # Django REST Framework

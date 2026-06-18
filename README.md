@@ -103,7 +103,7 @@ uv run pytest --cov --cov-report=html
 open htmlcov/index.html
 ```
 
-## Object Storage
+## 🗄️ Object Storage
 
 Media files (audio, avatars) are stored in S3-compatible object storage.
 
@@ -117,6 +117,26 @@ MinIO console (Docker): http://localhost:9001 (minioadmin / minioadmin123)
 
 Switching between MinIO and S3 requires **no code changes** — only env vars.
 
+## ⚡ Caching (Redis)
+
+The public feed is cached in Redis for fast, low-load reads.
+
+| Environment | Cache backend |
+|-------------|---------|
+| Local dev   | In-memory (REDIS_URL empty) |
+| Docker      | Redis 7 (redis://redis:6379/1) |
+| Production  | Redis (managed/self-hosted) |
+
+- Default feed is cached for 60 seconds and invalidated automatically when songs change.
+- Filtered/searched feed queries always hit the database (fresh results).
+- Health check endpoint: GET /api/health/ (reports API/cache status).
+
+Redis also serves as the Celery broker foundation for background tasks.
+
+
+## 🚀 Running Locally
+Detailed setup instructions are evolving as the project progresses.
+
 
 ## 📦 Deployment Plan
 
@@ -125,9 +145,11 @@ The project will be deployed in two stages:
 1. VPS deployment using Docker Compose
 2. Cloud deployment/migration, likely AWS
 
+
 ## 📔 Development Journal
 
-See [`docs/JOURNAL.md`](docs/JOURNAL.md).
+For day-by-day implementation details, see the development see [`docs/JOURNAL.md`](docs/JOURNAL.md).
+
 
 ## 📄 License
 

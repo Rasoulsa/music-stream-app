@@ -34,7 +34,7 @@ services:
 
   createbuckets:
     image: minio/mc:latest
-    container_name: music-createbuckets
+    container_name: music-media
     depends_on:
       minio:
         condition: service_healthy
@@ -46,9 +46,24 @@ services:
       exit 0;
       "
 
+  redis:
+    image: redis:7-alpine
+    container_name: music-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
+      target: dev
     container_name: music-backend
     restart: unless-stopped
     env_file:
@@ -62,6 +77,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - media_files:/app/media
 
@@ -69,3 +86,4 @@ volumes:
   postgres_data:
   media_files:
   minio_data:
+  redis_data:

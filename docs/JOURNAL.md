@@ -519,3 +519,41 @@ object storage. MinIO locally, AWS S3 in production — same code path.
 - Avatar uploaded via PATCH /api/users/me/ appears in MinIO bucket.
 - File served directly from MinIO at its public URL.
 - CI green; coverage still ≥ 85%.
+
+
+## Day 15 — Redis (Caching + Celery Foundation)
+
+### Goal
+Add Redis to the stack and use it as a Django cache backend. Cache the
+public feed (the hottest read) and invalidate it automatically on song
+changes. Also lays the foundation for Celery (Day 16).
+
+### Added
+- `redis` + `django-redis`.
+- Redis 7 service in docker-compose (persistence + health check).
+- `REDIS_URL` env switch:
+  - set   → Redis cache (Docker / prod)
+  - empty → local-memory cache (dev without Redis)
+- Feed caching: default first-page cached 60s; filtered/searched queries
+  bypass cache (always fresh).
+- Automatic cache invalidation via post_save / post_delete signals on Song.
+- `/api/health/` endpoint reporting DB + cache status.
+
+### Redis DB layout
+- /1 → Django cache (this day)
+- /0 → reserved for Celery broker (Day 16)
+
+### Why it matters
+- Hot reads served from memory, not the DB → faster, less load.
+- Correct cache invalidation → users never see stale data.
+- Health endpoint → production monitoring + demo-friendly.
+
+### Testing approach
+- Local: local-memory cache (no Redis needed).
+- Docker/CI: behavior verified; autouse fixture clears cache per test.
+
+### Verified
+- redis-cli PING → PONG.
+- Cache key appears after first feed request; cleared on song create/delete.
+- Filtered feed bypasses cache as designed.
+- CI green; coverage ≥ 85%.
