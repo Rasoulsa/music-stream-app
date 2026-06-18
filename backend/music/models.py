@@ -10,6 +10,10 @@ from django.db import models
 class Song(models.Model):
     """
     Represents a single song/track in the music library.
+
+    Files are stored in S3-compatible object storage (MinIO locally, S3 in prod).
+    Storage backend is configured via STORAGES['default'] — no model changes
+    needed when switching between local disk, MinIO, and AWS S3.
     """
 
     title = models.CharField(
@@ -71,6 +75,13 @@ class Song(models.Model):
 
 
 class Profile(models.Model):
+    """
+    Extended user profile.
+
+    Auto-created via post_save signal on User registration.
+    Avatar stored in object storage (MinIO/S3).
+    """
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -78,6 +89,11 @@ class Profile(models.Model):
     )
     display_name = models.CharField(max_length=80, blank=True)
     bio = models.TextField(max_length=500, blank=True)
+    avatar = models.ImageField(
+        upload_to="avatars/",
+        blank=True,
+        null=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

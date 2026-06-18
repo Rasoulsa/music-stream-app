@@ -103,6 +103,21 @@ uv run pytest --cov --cov-report=html
 open htmlcov/index.html
 ```
 
+## Object Storage
+
+Media files (audio, avatars) are stored in S3-compatible object storage.
+
+| Environment | Storage |
+|-------------|---------|
+| Local dev   | Local disk (`USE_S3=false`) |
+| Docker      | MinIO (`USE_S3=true`) |
+| Production  | AWS S3 (`USE_S3=true`) |
+
+MinIO console (Docker): http://localhost:9001 (minioadmin / minioadmin123)
+
+Switching between MinIO and S3 requires **no code changes** — only env vars.
+
+
 ## 📦 Deployment Plan
 
 The project will be deployed in two stages:

@@ -23,3 +23,10 @@ DATABASES = {
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",
 ]
+
+
+# Force local-disk storage in CI/tests (never touch real object storage)
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}

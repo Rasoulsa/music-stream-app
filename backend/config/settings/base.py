@@ -130,15 +130,56 @@ USE_I18N = True
 USE_TZ = True
 
 # -----------------------------------------------------------------------------
-# Static and media files
+# Static files
 # -----------------------------------------------------------------------------
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# -----------------------------------------------------------------------------
+# Media files / Object Storage (django-storages + S3/MinIO)
+# -----------------------------------------------------------------------------
+# USE_S3=false → local filesystem (fast local dev, no MinIO needed)
+# USE_S3=true  → S3-compatible storage (MinIO in Docker, AWS S3 in production)
+# Switching environments requires ONLY env vars — no code changes.
+# -----------------------------------------------------------------------------
+USE_S3 = env.bool("USE_S3", default=False)
+
+if USE_S3:
+    AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY")
+    AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME")
+    AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL")
+    AWS_S3_CUSTOM_DOMAIN = env("AWS_S3_CUSTOM_DOMAIN")
+    AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", default="us-east-1")
+    AWS_S3_USE_SSL = env.bool("AWS_S3_USE_SSL", default=False)
+
+    AWS_S3_OBJECT_PARAMETERS = {"CacheControl": "max-age=86400"}
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = False  # public-read URLs (no signed query string)
+
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3.S3Storage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+
+    MEDIA_URL = f"http://{AWS_S3_CUSTOM_DOMAIN}/"
+else:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+    MEDIA_URL = "media/"
+    MEDIA_ROOT = BASE_DIR / "media"
 
 # -----------------------------------------------------------------------------
 # Django REST Framework
