@@ -487,3 +487,35 @@ a live coverage badge — signaling engineering discipline.
 - Coverage is enforced, not optional — quality can't silently regress.
 - Branch coverage catches untested code paths, not just unexecuted lines.
 - Honest, focused coverage (excludes auto-generated/config code).
+
+
+## Day 14 — Object Storage (MinIO / S3) + Avatars
+
+### Goal
+Move media (audio files, avatars) off local disk onto S3-compatible
+object storage. MinIO locally, AWS S3 in production — same code path.
+
+### Added
+- `django-storages` + `boto3`.
+- MinIO service in docker-compose + one-shot bucket-creation service.
+- `USE_S3` env switch:
+  - false → local disk (fast local dev, no MinIO)
+  - true  → S3-compatible storage (MinIO / AWS S3)
+- Modern Django 5 `STORAGES` setting (not deprecated DEFAULT_FILE_STORAGE).
+- `avatar` ImageField on Profile; `audio_file` uses object storage.
+- MyProfileView now accepts multipart uploads (avatar) + JSON.
+
+### Why it matters
+- Audio files now live in durable, scalable object storage.
+- Identical code for local (MinIO) and production (S3) — swapped by env var.
+- Container restarts no longer lose uploaded media.
+
+### Testing approach
+- Tests force local-disk storage (USE_S3=false) — fast, isolated, never
+  touch real MinIO/S3.
+- In-memory PNG generated with Pillow for avatar upload tests.
+
+### Verified
+- Avatar uploaded via PATCH /api/users/me/ appears in MinIO bucket.
+- File served directly from MinIO at its public URL.
+- CI green; coverage still ≥ 85%.
