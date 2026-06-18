@@ -20,6 +20,41 @@ dependencies = [
 dev = [
     "pre-commit>=4.0",
     "pytest>=8.3",
+    "pytest-cov>=7.1.0",
     "pytest-django>=4.9",
     "ruff>=0.7",
 ]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.dev"
+python_files = ["test_*.py", "*_test.py"]
+addopts = "--reuse-db --cov --cov-fail-under=85"
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "*/test_*.py",
+    "manage.py",
+    "config/wsgi.py",
+    "config/asgi.py",
+    "config/settings/*",
+    "*/__init__.py",
+    "*/apps.py",
+]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+precision = 1
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"

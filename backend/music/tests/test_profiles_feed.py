@@ -41,12 +41,39 @@ def _results(res):
     return res.data["results"] if "results" in res.data else res.data
 
 
+# ── Model __str__ methods ──────────────────────────────────────────────
+
+
+def test_profile_str(user):
+    assert str(user.profile) == f"Profile<{user.username}>"
+
+
+def test_song_str(user):
+    song = Song.objects.create(
+        owner=user,
+        title="My Song",
+        artist="Faraz",
+        album="Demo",
+        duration_seconds=180,
+        is_public=True,
+    )
+    assert str(song) == "My Song — Faraz"
+
+
 # ── Profile auto-creation (signal) ─────────────────────────────────────
 
 
 @pytest.mark.django_db
 def test_profile_created_automatically(user):
     assert Profile.objects.filter(user=user).exists()
+
+
+# @pytest.mark.django_db
+def test_signal_does_not_duplicate_profile_on_update(user):
+    """Saving an existing user should NOT create a second profile."""
+    user.email = "changed@example.com"
+    user.save()  # update, not create
+    assert Profile.objects.filter(user=user).count() == 1
 
 
 # ── GET /api/users/me/ ─────────────────────────────────────────────────
@@ -240,3 +267,45 @@ def test_user_public_songs_excludes_private(api_client, user):
 def test_user_public_songs_no_auth_required(api_client, user):
     res = api_client.get(f"/api/users/{user.username}/songs/")
     assert res.status_code == status.HTTP_200_OK
+
+
+def test_public_profile_song_count(api_client, user):
+    """Covers the public_song_count SerializerMethodField."""
+    from music.models import Song
+
+    Song.objects.create(
+        owner=user,
+        title="Pub",
+        artist="Faraz",
+        album="Demo",
+        duration_seconds=180,
+        is_public=True,
+    )
+    Song.objects.create(
+        owner=user,
+        title="Priv",
+        artist="Faraz",
+        album="Demo",
+        duration_seconds=200,
+        is_public=False,
+    )
+    res = api_client.get(f"/api/users/{user.username}/")
+    assert res.status_code == 200
+    assert res.data["public_song_count"] == 1
+
+
+def test_my_profile_song_count(auth_client, user):
+    """Covers the song_count SerializerMethodField."""
+    from music.models import Song
+
+    Song.objects.create(
+        owner=user,
+        title="A",
+        artist="Faraz",
+        album="Demo",
+        duration_seconds=180,
+        is_public=True,
+    )
+    res = auth_client.get("/api/users/me/")
+    assert res.status_code == 200
+    assert res.data["song_count"] == 1
