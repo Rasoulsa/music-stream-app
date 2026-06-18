@@ -84,6 +84,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             "email",
             "display_name",
             "bio",
+            "avatar",
             "song_count",
             "created_at",
             "updated_at",
@@ -106,6 +107,7 @@ class PublicProfileSerializer(serializers.ModelSerializer):
             "username",
             "display_name",
             "bio",
+            "avatar",
             "public_song_count",
             "created_at",
         ]
