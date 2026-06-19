@@ -557,3 +557,47 @@ changes. Also lays the foundation for Celery (Day 16).
 - Cache key appears after first feed request; cleared on song create/delete.
 - Filtered feed bypasses cache as designed.
 - CI green; coverage ≥ 85%.
+
+
+## Day 16 — Celery (Async Audio Processing)
+
+### Goal
+Offload slow audio metadata extraction to a background worker so uploads
+return instantly. Celery with Redis broker (the /0 DB reserved on Day 15).
+
+### Added
+- `celery` + `mutagen`.
+- `config/celery.py` Celery app + autodiscover; loaded via `config/__init__.py`.
+- Celery settings (broker /0, results /2, time limits, retries).
+- `CELERY_TASK_ALWAYS_EAGER` env switch:
+  - true  → inline in-process (local dev & tests, no worker)
+  - false → real async worker (Docker / prod)
+- `Song.status` (pending/processing/ready/failed) + duration filled by task.
+- `process_song_audio` task: extracts duration via mutagen, retries on failure.
+- `perform_create` queues the task on upload (.delay()).
+- `celery_worker` service in docker-compose (same image as backend).
+
+### Redis DB layout (final)
+- /0 → Celery broker
+- /1 → Django cache (Day 15)
+- /2 → Celery results
+
+### Why it matters
+- Uploads respond immediately; heavy work happens off the request cycle.
+- Status field lets the frontend show processing → ready.
+- Retries handle transient failures (production-grade).
+
+### Testing approach
+- Tests run tasks eagerly (synchronous) — no worker/Redis required.
+- Covers task success, missing song, missing file, and upload-triggers-task.
+
+### Verified
+- Worker boots and registers process_song_audio.
+- Upload returns instantly; worker fills duration + sets status=ready.
+- CI green; coverage ≥ 85%.
+
+### Fix
+- Discovered tests assumed CELERY_TASK_ALWAYS_EAGER=true, which holds in
+  dev but not in Docker (production settings, EAGER=false → task queued,
+  not run inline). Added an autouse conftest fixture forcing eager mode in
+  all tests, making the suite deterministic across environments.

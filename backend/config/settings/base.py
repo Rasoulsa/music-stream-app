@@ -2,7 +2,6 @@
 Base settings shared across all environments.
 """
 
-import os
 from datetime import timedelta
 from pathlib import Path
 
@@ -186,7 +185,7 @@ else:
 # ------------------------------------------------------------------
 # Cache (Redis if REDIS_URL is set, else local-memory fallback)
 # ------------------------------------------------------------------
-REDIS_URL = os.environ.get("REDIS_URL", "")
+REDIS_URL = env("REDIS_URL", default="")
 
 if REDIS_URL:
     CACHES = {
@@ -208,6 +207,30 @@ else:
             "LOCATION": "music-locmem",
         }
     }
+
+
+# -----------------------------------------------------------------------------
+# Celery (background tasks)
+# -----------------------------------------------------------------------------
+# Broker  → Redis /0
+# Backend → Redis /2
+#
+# CELERY_TASK_ALWAYS_EAGER switch:
+#   true  → tasks run inline, in-process (local dev & tests, no worker needed)
+#   false → tasks go to Redis, processed by a real async worker (Docker / prod)
+# -----------------------------------------------------------------------------
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://localhost:6379/2")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 300  # hard kill after 5 min
+CELERY_TASK_SOFT_TIME_LIMIT = 270  # graceful warning at 4.5 min
+
+CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=True)
+CELERY_TASK_EAGER_PROPAGATES = True
 
 # -----------------------------------------------------------------------------
 # Django REST Framework

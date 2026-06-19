@@ -82,6 +82,23 @@ services:
     volumes:
       - media_files:/app/media
 
+  celery_worker:
+    build:
+      context: ./backend
+    container_name: music-celery
+    command: /app/.venv/bin/celery -A config worker --loglevel=info
+    env_file:
+      - ./backend/.env.docker
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - media_files:/app/media
+
 volumes:
   postgres_data:
   media_files:

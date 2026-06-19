@@ -52,10 +52,11 @@ class SongSerializer(serializers.ModelSerializer):
             "audio_file",
             "cover_image",
             "duration_seconds",
+            "status",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["owner", "created_at", "updated_at"]
+        read_only_fields = ["owner", "created_at", "status", "updated_at"]
 
     def validate_title(self, value: str) -> str:
         """Ensure the title is not blank or whitespace only."""

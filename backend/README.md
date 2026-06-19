@@ -298,3 +298,21 @@ CI runs on every push and pull request:
 Tests use a dedicated `config/settings/ci.py` configuration.
 
 See the [root README](../README.md) for build status and coverage badges.
+
+
+## Background Tasks (Celery)
+
+Slow work (audio metadata extraction) runs asynchronously via Celery with
+a Redis broker.
+
+| Environment | Execution |
+|-------------|-----------|
+| Local dev / tests | Eager (in-process, no worker needed) |
+| Docker / prod     | Async via dedicated Celery worker |
+
+Flow: upload song → returns immediately (`status: pending`) → worker
+extracts duration → song updated to `status: ready`.
+
+Run the worker (Docker): included as the `celery_worker` service.
+
+Redis DBs: `/0` broker, `/1` cache, `/2` results.
