@@ -133,6 +133,16 @@ The public feed is cached in Redis for fast, low-load reads.
 
 Redis also serves as the Celery broker foundation for background tasks.
 
+## Production Serving (Nginx + Gunicorn)
+
+Nginx is the single public entry point (port 80) and reverse-proxies to
+Gunicorn (internal only).
+
+```text
+internet → Nginx :80 → Gunicorn :8000 (internal) → Django
+                     → /static/  served directly
+                     → /media/   served by MinIO (or Nginx in local-disk mode)
+
 
 ## 🚀 Running Locally
 Detailed setup instructions are evolving as the project progresses.

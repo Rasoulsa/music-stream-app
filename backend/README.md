@@ -316,3 +316,7 @@ extracts duration → song updated to `status: ready`.
 Run the worker (Docker): included as the `celery_worker` service.
 
 Redis DBs: `/0` broker, `/1` cache, `/2` results.
+
+
+### Fix
+- Celery workers unhealty status in docker fixed

@@ -91,6 +91,12 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 # -----------------------------------------------------------------------------
+# Nginx
+# -----------------------------------------------------------------------------
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
+
+# -----------------------------------------------------------------------------
 # Database
 # -----------------------------------------------------------------------------
 # Default to SQLite for easy local dev.
@@ -132,7 +138,7 @@ USE_TZ = True
 # -----------------------------------------------------------------------------
 # Static files
 # -----------------------------------------------------------------------------
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
