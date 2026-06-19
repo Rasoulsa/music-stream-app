@@ -601,3 +601,38 @@ return instantly. Celery with Redis broker (the /0 DB reserved on Day 15).
   dev but not in Docker (production settings, EAGER=false → task queued,
   not run inline). Added an autouse conftest fixture forcing eager mode in
   all tests, making the suite deterministic across environments.
+
+## Day 17 — Nginx Reverse Proxy
+
+### Goal
+Put Nginx in front of Gunicorn as the production gateway: single entry
+point, direct static file serving, request buffering, large upload support.
+
+### Added
+- `nginx/nginx.conf`: proxies /api, /admin, /docs to Gunicorn; serves
+  /static and /media directly; client_max_body_size 50M for audio uploads.
+- `nginx` service (nginx:1.27-alpine) on port 80 — the only public web port.
+- Backend switched from `ports` to `expose` — Gunicorn is internal only.
+- Backend command now runs migrate + collectstatic + gunicorn.
+- Shared `static_files` volume (backend writes, Nginx reads).
+- Django proxy-aware settings: SECURE_PROXY_SSL_HEADER, USE_X_FORWARDED_HOST.
+- ALLOWED_HOSTS includes internal service names (backend, nginx).
+
+### Architecture
+internet → Nginx (80) → Gunicorn (8000, internal) → Django
+                      → /static, /media served directly
+
+### Why it matters
+- Gunicorn never faces the internet directly.
+- Static files served efficiently by Nginx (no Python overhead).
+- Single, clean entry point — ready for HTTPS + frontend routing later.
+
+### Verified
+- http://localhost/api/docs/ and /admin/ load (static via Nginx).
+- http://localhost:8000 → connection refused (backend internal only).
+- collectstatic populates shared volume; Nginx serves it.
+- CI green; coverage ≥ 85%.
+
+### Deferred
+- HTTPS (Let's Encrypt) → Phase 5 (VPS deployment).
+- Frontend routing through Nginx → Phase 4 (integration).
