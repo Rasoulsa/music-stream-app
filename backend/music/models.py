@@ -16,6 +16,12 @@ class Song(models.Model):
     needed when switching between local disk, MinIO, and AWS S3.
     """
 
+    class ProcessingStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PROCESSING = "processing", "Processing"
+        READY = "ready", "Ready"
+        FAILED = "failed", "Failed"
+
     title = models.CharField(
         max_length=255,
         help_text="The title of the song.",
@@ -42,8 +48,12 @@ class Song(models.Model):
         help_text="Cover art for the song (optional).",
     )
     duration_seconds = models.PositiveIntegerField(
-        default=0,
-        help_text="Duration of the song in seconds.",
+        default=0
+    )  # seconds (filled by task)
+    status = models.CharField(
+        max_length=20,
+        choices=ProcessingStatus.choices,
+        default=ProcessingStatus.PENDING,
     )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,

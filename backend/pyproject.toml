@@ -5,6 +5,7 @@ description = "Add your description here"
 requires-python = ">=3.13"
 dependencies = [
     "boto3>=1.43.32",
+    "celery>=5.6.3",
     "django>=5.1,<5.2",
     "django-cors-headers>=4.4",
     "django-environ>=0.11",
@@ -15,6 +16,7 @@ dependencies = [
     "djangorestframework-simplejwt>=5.5.1",
     "drf-spectacular>=0.27",
     "gunicorn>=26.0.0",
+    "mutagen>=1.47.0",
     "pillow>=11.0",
     "psycopg[binary]>=3.2",
     "redis>=8.0.0",

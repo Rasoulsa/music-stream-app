@@ -23,6 +23,7 @@ from music.serializers import (
     RegisterSerializer,
     SongSerializer,
 )
+from music.tasks import process_song_audio
 
 User = get_user_model()
 
@@ -145,8 +146,9 @@ class SongViewSet(viewsets.ModelViewSet):
         return base.filter(is_public=True)
 
     def perform_create(self, serializer):
-        """Automatically set the current authenticated user as the song owner."""
-        serializer.save(owner=self.request.user)
+        song = serializer.save(owner=self.request.user)
+        # Queue background processing (async in Docker/prod, inline in dev/tests).
+        process_song_audio.delay(song.id)
 
 
 # ── Profiles ───────────────────────────────────────────────────────────────────
