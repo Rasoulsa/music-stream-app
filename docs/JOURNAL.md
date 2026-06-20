@@ -636,3 +636,33 @@ internet → Nginx (80) → Gunicorn (8000, internal) → Django
 ### Deferred
 - HTTPS (Let's Encrypt) → Phase 5 (VPS deployment).
 - Frontend routing through Nginx → Phase 4 (integration).
+
+## Day 18 — Production Docker Compose (Dev/Prod Split)
+
+### Goal
+Cleanly separate dev and prod environments using the Compose override
+pattern — one codebase, two stacks, no manual changes.
+
+### Added
+- `config/settings/production.py`: DEBUG off, strict ALLOWED_HOSTS,
+  security headers, stdout logging, fail-loud SECRET_KEY, env-gated HTTPS flags.
+- `docker-compose.yml` refactored to a clean BASE (shared services, env vars).
+- `docker-compose.dev.yml`: runserver, exposed ports, code volume (hot-reload),
+  DEBUG=true via .env.dev.
+- `docker-compose.prod.yml`: gunicorn + collectstatic, nginx gateway,
+  internal-only backend/infra, restart policies, .env.prod.
+- `.env.dev` / `.env.prod` (gitignored; .env.example documents them).
+- Makefile with dev-up/down/test and prod-up/down/logs targets.
+
+### Verified
+- Dev: http://localhost:8000 direct access + auto-reload.
+- Prod: http://localhost (Nginx only); :8000 refused; DB not exposed; DEBUG=False.
+- Production settings import test + fail-loud-on-missing-secret test.
+
+### Why it matters
+- Identical code, environment chosen by override file.
+- Prod is hardened (no debug, no exposed infra, restart policies).
+- Dev stays fast (hot-reload, direct ports).
+
+### Deferred
+- HTTPS flags flip to true in Phase 5 (TLS termination).

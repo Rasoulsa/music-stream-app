@@ -142,6 +142,19 @@ Gunicorn (internal only).
 internet → Nginx :80 → Gunicorn :8000 (internal) → Django
                      → /static/  served directly
                      → /media/   served by MinIO (or Nginx in local-disk mode)
+```
+
+## Running the Project
+
+Two environments via Docker Compose overrides (one codebase):
+
+```bash
+# Development (hot-reload, exposed ports, DEBUG on)
+make dev-up          # → http://localhost:8000
+```
+
+# Production-like (Nginx + Gunicorn, DEBUG off, hardened)
+make prod-up         # → http://localhost
 
 
 ## 🚀 Running Locally

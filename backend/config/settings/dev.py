@@ -2,13 +2,12 @@
 Development settings.
 """
 
-import os
-
 from .base import *  # noqa: F401,F403
+from .base import BASE_DIR, env  # noqa: F401
 
 DEBUG = True
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "backend"]
 
 # Allow the React dev server during development
 CORS_ALLOWED_ORIGINS = [
@@ -24,13 +23,10 @@ REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] = [  # noqa: F405
 
 # ------------------------------------------------------------------
 # Database
-# Local dev  → SQLite  (fast, no Docker needed)
-# Docker dev → PostgreSQL (matches production)
-# Controlled by USE_DOCKER env var:
-#   .env             → USE_DOCKER=false  (local)
-#   docker-compose   → USE_DOCKER=true   (Docker)
+# Local dev  → SQLite  (fast, no Docker needed)   USE_DOCKER=false
+# Docker dev → PostgreSQL (matches production)     USE_DOCKER=true
 # ------------------------------------------------------------------
-if os.environ.get("USE_DOCKER", "false").lower() == "true":
+if env.bool("USE_DOCKER", default=False):  # noqa: F405
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
