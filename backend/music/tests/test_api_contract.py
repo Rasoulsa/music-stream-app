@@ -59,9 +59,9 @@ def test_live_schema_matches_frozen(client):
         f"Frozen: {sorted(frozen['paths'].keys())}"
     )
 
-    assert (
-        live["info"]["version"] == frozen["info"]["version"]
-    ), "API version mismatch — did you forget to bump/freeze?"
+    assert live["info"]["version"] == frozen["info"]["version"], (
+        "API version mismatch — did you forget to bump/freeze?"
+    )
 
 
 def test_api_is_versioned():
