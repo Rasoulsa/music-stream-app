@@ -3,6 +3,7 @@ import io
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
 from PIL import Image
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -43,7 +44,7 @@ def test_upload_avatar(auth_client, settings, tmp_path):
     # Force local-disk storage in tests, into a temp dir
     settings.MEDIA_ROOT = tmp_path
     res = auth_client.patch(
-        "/api/users/me/",
+        reverse("my-profile"),
         {"avatar": _make_image(), "display_name": "Faraz"},
         format="multipart",
     )
@@ -54,12 +55,12 @@ def test_upload_avatar(auth_client, settings, tmp_path):
 
 
 def test_profile_avatar_null_by_default(auth_client):
-    res = auth_client.get("/api/users/me/")
+    res = auth_client.get(reverse("my-profile"))
     assert res.status_code == status.HTTP_200_OK
     assert res.data["avatar"] is None
 
 
 def test_public_profile_includes_avatar_field(api_client, user):
-    res = api_client.get(f"/api/users/{user.username}/")
+    res = api_client.get(reverse("public-profile", kwargs={"username": user.username}))
     assert res.status_code == status.HTTP_200_OK
     assert "avatar" in res.data

@@ -666,3 +666,21 @@ pattern — one codebase, two stacks, no manual changes.
 
 ### Deferred
 - HTTPS flags flip to true in Phase 5 (TLS termination).
+
+## Day 19 — API Versioning & Contract Freeze
+
+Added `/api/v1/` prefix to all resource endpoints. Kept `/api/health/`,
+`/api/schema/`, and `/api/docs/` unversioned so operational endpoints stay
+stable across versions.
+
+Migrated all tests from hardcoded URLs (`/api/songs/`) to `reverse()` so
+they're resilient to prefix changes.
+
+Froze the OpenAPI schema and added a contract test
+(`test_api_contract.py::test_api_is_versioned`) that fails if the public API
+shape drifts.
+
+**Key realization:** `/api/v1/` is not dev-only — it lives in `urls.py`, so
+it applies to dev *and* production. The freeze enforces the contract everywhere.
+
+All 79 tests pass, 100% coverage.

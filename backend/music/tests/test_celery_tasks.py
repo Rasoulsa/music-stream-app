@@ -4,6 +4,7 @@ import pytest
 from celery.exceptions import Retry
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
 
 from music.models import Song
 from music.tasks import process_song_audio
@@ -94,7 +95,7 @@ def test_upload_triggers_processing(user):
     client.force_authenticate(user=user)
 
     res = client.post(
-        "/api/songs/",
+        reverse("song-list"),
         {
             "title": "API Track",
             "artist": "Faraz",

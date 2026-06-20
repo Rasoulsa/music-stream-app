@@ -1,6 +1,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
 from rest_framework.test import APIClient
 
 User = get_user_model()
@@ -18,7 +19,7 @@ def user(db):
 
 def auth_header(client, username, password):
     res = client.post(
-        "/api/auth/login/",
+        reverse("token-obtain-pair"),
         {"username": username, "password": password},
         format="json",
     )
@@ -29,7 +30,7 @@ def auth_header(client, username, password):
 @pytest.mark.django_db
 def test_register(client):
     res = client.post(
-        "/api/auth/register/",
+        reverse("register"),
         {"username": "bob", "email": "bob@example.com", "password": "StrongPass123!"},
         format="json",
     )
@@ -40,7 +41,7 @@ def test_register(client):
 @pytest.mark.django_db
 def test_login_returns_tokens(client, user):
     res = client.post(
-        "/api/auth/login/",
+        reverse("token-obtain-pair"),
         {"username": "alice", "password": "StrongPass123!"},
         format="json",
     )
@@ -53,7 +54,7 @@ def test_login_returns_tokens(client, user):
 def test_authenticated_user_can_create_song(client, user):
     headers = auth_header(client, "alice", "StrongPass123!")
     res = client.post(
-        "/api/songs/",
+        reverse("song-list"),
         {"title": "Song A", "artist": "Alice", "is_public": True},
         format="multipart",
         **headers,
@@ -65,7 +66,7 @@ def test_authenticated_user_can_create_song(client, user):
 @pytest.mark.django_db
 def test_anonymous_cannot_create_song(client):
     res = client.post(
-        "/api/songs/",
+        reverse("song-list"),
         {"title": "Nope", "artist": "X", "is_public": True},
         format="multipart",
     )
@@ -74,16 +75,14 @@ def test_anonymous_cannot_create_song(client):
 
 @pytest.mark.django_db
 def test_private_song_hidden_from_others(client, user):
-    # Alice creates a private song
     headers = auth_header(client, "alice", "StrongPass123!")
     client.post(
-        "/api/songs/",
+        reverse("song-list"),
         {"title": "Secret", "artist": "Alice", "is_public": False},
         format="multipart",
         **headers,
     )
-    # Anonymous list should not include it
-    res = client.get("/api/songs/")
+    res = client.get(reverse("song-list"))
     titles = (
         [s["title"] for s in res.data["results"]]
         if "results" in res.data
@@ -99,7 +98,7 @@ def test_user_cannot_edit_others_song(client):
 
     a_headers = auth_header(client, "alice2", "StrongPass123!")
     create = client.post(
-        "/api/songs/",
+        reverse("song-list"),
         {"title": "Alice Song", "artist": "Alice", "is_public": True},
         format="multipart",
         **a_headers,
@@ -108,7 +107,7 @@ def test_user_cannot_edit_others_song(client):
 
     b_headers = auth_header(client, "bob2", "StrongPass123!")
     res = client.patch(
-        f"/api/songs/{song_id}/",
+        reverse("song-detail", args=[song_id]),  # ← fixed
         {"title": "Hacked"},
         format="multipart",
         **b_headers,
@@ -121,7 +120,7 @@ def test_user_can_upload_song_with_audio_file(client, user):
     headers = auth_header(client, "alice", "StrongPass123!")
     audio = SimpleUploadedFile("track.mp3", b"fake-audio", content_type="audio/mpeg")
     res = client.post(
-        "/api/songs/",
+        reverse("song-list"),
         {
             "title": "Uploaded Song",
             "artist": "Alice",

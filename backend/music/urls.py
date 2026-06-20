@@ -1,5 +1,8 @@
 """
 URL configuration for the music app.
+
+These routes are mounted under /api/v1/ by config/urls.py.
+The health check lives in config/urls.py (unversioned), NOT here.
 """
 
 from django.urls import path
@@ -12,7 +15,6 @@ from music.views import (
     PublicProfileView,
     SongViewSet,
     UserPublicSongsView,
-    health_check,
 )
 
 router = DefaultRouter()
@@ -21,7 +23,6 @@ router.register(r"songs", SongViewSet, basename="song")
 urlpatterns = [
     # ⚠️ Explicit paths MUST come before router.urls,
     # otherwise 'mine' would be matched as songs/<pk>/
-    path("health/", health_check, name="health-check"),
     path("songs/mine/", MySongsView.as_view(), name="my-songs"),
     path("feed/", FeedView.as_view(), name="feed"),
     path("users/me/", MyProfileView.as_view(), name="my-profile"),
