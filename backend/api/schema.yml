@@ -1,0 +1,957 @@
+openapi: 3.0.3
+info:
+  title: Music Stream App API
+  version: 1.0.0
+  description: API for a full-stack dockerized music streaming application. Built
+    with Django, Django REST Framework, and OpenAPI 3. Supports user auth, song upload,
+    async audio processing, filtering, and S3-backed media storage.
+  contact:
+    name: Faraz
+  license:
+    name: MIT
+paths:
+  /api/health/:
+    get:
+      operationId: api_health_retrieve
+      description: Returns the service status and cache health. Used by load balancers,
+        Docker healthchecks, and monitoring.
+      summary: Health check
+      tags:
+      - health
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: music-stream-app
+                  cache:
+                    type: string
+                    example: ok
+          description: ''
+  /api/v1/auth/register/:
+    post:
+      operationId: auth_register_create
+      description: |-
+        API endpoint for registering a new user.
+
+        Creates a new user account with username, email, and password.
+        After registration, the user can log in using the JWT login endpoint.
+      tags:
+      - aut
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Register'
+          description: ''
+  /api/v1/auth/login/:
+    post:
+      operationId: auth_login_create
+      description: |-
+        Takes a set of user credentials and returns an access and refresh JSON web
+        token pair to prove the authentication of those credentials.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPairRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPairRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPairRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenObtainPair'
+          description: ''
+  /api/v1/auth/refresh/:
+    post:
+      operationId: auth_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/v1/songs/mine/:
+    get:
+      operationId: songs_mine_list
+      description: Authenticated user's own songs — both public and private.
+      summary: List my songs (public + private)
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - songs
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSongList'
+          description: ''
+  /api/v1/feed/:
+    get:
+      operationId: feed_list
+      description: Public feed — all public songs, paginated, filterable, cached.
+      summary: Public feed of all public songs
+      parameters:
+      - in: query
+        name: album
+        schema:
+          type: string
+        description: Filter by album (case-insensitive, partial match).
+      - in: query
+        name: artist
+        schema:
+          type: string
+        description: Filter by artist (case-insensitive, partial match).
+      - in: query
+        name: max_duration
+        schema:
+          type: integer
+        description: Maximum duration in seconds.
+      - in: query
+        name: min_duration
+        schema:
+          type: integer
+        description: Minimum duration in seconds.
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - feed
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSongList'
+          description: ''
+  /api/v1/users/me/:
+    get:
+      operationId: users_me_retrieve
+      description: Retrieve or update the authenticated user's own profile.
+      summary: Get my profile
+      tags:
+      - profiles
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+          description: ''
+    patch:
+      operationId: users_me_partial_update
+      description: Retrieve or update the authenticated user's own profile.
+      summary: Update my profile
+      tags:
+      - profiles
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProfileRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProfileRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProfileRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+          description: ''
+  /api/v1/users/{username}/:
+    get:
+      operationId: users_retrieve
+      description: Public profile of any user by username (no email exposed).
+      summary: Get public profile by username
+      parameters:
+      - in: path
+        name: username
+        schema:
+          type: string
+        required: true
+      tags:
+      - profiles
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicProfile'
+          description: ''
+  /api/v1/users/{username}/songs/:
+    get:
+      operationId: users_songs_list
+      description: List a given user's PUBLIC songs only.
+      summary: List a user's public songs
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: path
+        name: username
+        schema:
+          type: string
+        required: true
+      tags:
+      - songs
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSongList'
+          description: ''
+  /api/v1/songs/:
+    post:
+      operationId: songs_create
+      description: |-
+        API endpoint for managing songs.
+
+        Provides list, create, retrieve, update, and delete operations.
+        Supports multipart uploads for audio files and cover images.
+
+        Visibility rules:
+        - Anonymous users can see only public songs.
+        - Authenticated users can see public songs plus their own private songs.
+        - Only authenticated users can create songs.
+        - Only the owner of a song can update or delete it.
+
+        Query parameters:
+        - search: free-text search across title, artist, and album
+        - artist: filter by artist (partial, case-insensitive)
+        - album: filter by album (partial, case-insensitive)
+        - min_duration / max_duration: filter by duration in seconds
+        - is_public: filter by visibility
+        - ordering: sort by title, artist, duration_seconds, or created_at
+          (prefix with '-' for descending)
+      tags:
+      - songs
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SongRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SongRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Song'
+          description: ''
+    get:
+      operationId: songs_list
+      description: |-
+        API endpoint for managing songs.
+
+        Provides list, create, retrieve, update, and delete operations.
+        Supports multipart uploads for audio files and cover images.
+
+        Visibility rules:
+        - Anonymous users can see only public songs.
+        - Authenticated users can see public songs plus their own private songs.
+        - Only authenticated users can create songs.
+        - Only the owner of a song can update or delete it.
+
+        Query parameters:
+        - search: free-text search across title, artist, and album
+        - artist: filter by artist (partial, case-insensitive)
+        - album: filter by album (partial, case-insensitive)
+        - min_duration / max_duration: filter by duration in seconds
+        - is_public: filter by visibility
+        - ordering: sort by title, artist, duration_seconds, or created_at
+          (prefix with '-' for descending)
+      parameters:
+      - in: query
+        name: album
+        schema:
+          type: string
+        description: Filter by album (case-insensitive, partial match).
+      - in: query
+        name: artist
+        schema:
+          type: string
+        description: Filter by artist (case-insensitive, partial match).
+      - in: query
+        name: max_duration
+        schema:
+          type: integer
+        description: Maximum duration in seconds.
+      - in: query
+        name: min_duration
+        schema:
+          type: integer
+        description: Minimum duration in seconds.
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - songs
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSongList'
+          description: ''
+  /api/v1/songs/{id}/:
+    delete:
+      operationId: songs_destroy
+      description: |-
+        API endpoint for managing songs.
+
+        Provides list, create, retrieve, update, and delete operations.
+        Supports multipart uploads for audio files and cover images.
+
+        Visibility rules:
+        - Anonymous users can see only public songs.
+        - Authenticated users can see public songs plus their own private songs.
+        - Only authenticated users can create songs.
+        - Only the owner of a song can update or delete it.
+
+        Query parameters:
+        - search: free-text search across title, artist, and album
+        - artist: filter by artist (partial, case-insensitive)
+        - album: filter by album (partial, case-insensitive)
+        - min_duration / max_duration: filter by duration in seconds
+        - is_public: filter by visibility
+        - ordering: sort by title, artist, duration_seconds, or created_at
+          (prefix with '-' for descending)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Song.
+        required: true
+      tags:
+      - songs
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+    put:
+      operationId: songs_update
+      description: |-
+        API endpoint for managing songs.
+
+        Provides list, create, retrieve, update, and delete operations.
+        Supports multipart uploads for audio files and cover images.
+
+        Visibility rules:
+        - Anonymous users can see only public songs.
+        - Authenticated users can see public songs plus their own private songs.
+        - Only authenticated users can create songs.
+        - Only the owner of a song can update or delete it.
+
+        Query parameters:
+        - search: free-text search across title, artist, and album
+        - artist: filter by artist (partial, case-insensitive)
+        - album: filter by album (partial, case-insensitive)
+        - min_duration / max_duration: filter by duration in seconds
+        - is_public: filter by visibility
+        - ordering: sort by title, artist, duration_seconds, or created_at
+          (prefix with '-' for descending)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Song.
+        required: true
+      tags:
+      - songs
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SongRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SongRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Song'
+          description: ''
+    get:
+      operationId: songs_retrieve
+      description: |-
+        API endpoint for managing songs.
+
+        Provides list, create, retrieve, update, and delete operations.
+        Supports multipart uploads for audio files and cover images.
+
+        Visibility rules:
+        - Anonymous users can see only public songs.
+        - Authenticated users can see public songs plus their own private songs.
+        - Only authenticated users can create songs.
+        - Only the owner of a song can update or delete it.
+
+        Query parameters:
+        - search: free-text search across title, artist, and album
+        - artist: filter by artist (partial, case-insensitive)
+        - album: filter by album (partial, case-insensitive)
+        - min_duration / max_duration: filter by duration in seconds
+        - is_public: filter by visibility
+        - ordering: sort by title, artist, duration_seconds, or created_at
+          (prefix with '-' for descending)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Song.
+        required: true
+      tags:
+      - songs
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Song'
+          description: ''
+    patch:
+      operationId: songs_partial_update
+      description: |-
+        API endpoint for managing songs.
+
+        Provides list, create, retrieve, update, and delete operations.
+        Supports multipart uploads for audio files and cover images.
+
+        Visibility rules:
+        - Anonymous users can see only public songs.
+        - Authenticated users can see public songs plus their own private songs.
+        - Only authenticated users can create songs.
+        - Only the owner of a song can update or delete it.
+
+        Query parameters:
+        - search: free-text search across title, artist, and album
+        - artist: filter by artist (partial, case-insensitive)
+        - album: filter by album (partial, case-insensitive)
+        - min_duration / max_duration: filter by duration in seconds
+        - is_public: filter by visibility
+        - ordering: sort by title, artist, duration_seconds, or created_at
+          (prefix with '-' for descending)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Song.
+        required: true
+      tags:
+      - songs
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSongRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSongRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Song'
+          description: ''
+components:
+  schemas:
+    PaginatedSongList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Song'
+    PatchedProfileRequest:
+      type: object
+      description: Own profile (authenticated user) — includes email + total song
+        count.
+      properties:
+        display_name:
+          type: string
+          maxLength: 80
+        bio:
+          type: string
+          maxLength: 500
+        avatar:
+          type: string
+          format: binary
+          nullable: true
+    PatchedSongRequest:
+      type: object
+      description: Serializer for the Song model.
+      properties:
+        title:
+          type: string
+        artist:
+          type: string
+        is_public:
+          type: boolean
+          description: If true, the song is visible in the public feed. If false,
+            only the owner can see it.
+        album:
+          type: string
+          description: The album this song belongs to (optional).
+          maxLength: 255
+        audio_file:
+          type: string
+          format: binary
+          nullable: true
+          description: The audio file for the song.
+        cover_image:
+          type: string
+          format: binary
+          nullable: true
+          description: Cover art for the song (optional).
+        duration_seconds:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+    Profile:
+      type: object
+      description: Own profile (authenticated user) — includes email + total song
+        count.
+      properties:
+        username:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        display_name:
+          type: string
+          maxLength: 80
+        bio:
+          type: string
+          maxLength: 500
+        avatar:
+          type: string
+          format: uri
+          nullable: true
+        song_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - song_count
+      - updated_at
+      - username
+    PublicProfile:
+      type: object
+      description: Public profile — no email, only public song count.
+      properties:
+        username:
+          type: string
+          readOnly: true
+        display_name:
+          type: string
+          maxLength: 80
+        bio:
+          type: string
+          maxLength: 500
+        avatar:
+          type: string
+          format: uri
+          nullable: true
+        public_song_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - public_song_count
+      - username
+    Register:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+      required:
+      - id
+      - username
+    RegisterRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - username
+    Song:
+      type: object
+      description: Serializer for the Song model.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+        artist:
+          type: string
+        is_public:
+          type: boolean
+          description: If true, the song is visible in the public feed. If false,
+            only the owner can see it.
+        owner:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          readOnly: true
+        album:
+          type: string
+          description: The album this song belongs to (optional).
+          maxLength: 255
+        audio_file:
+          type: string
+          format: uri
+          nullable: true
+          description: The audio file for the song.
+        cover_image:
+          type: string
+          format: uri
+          nullable: true
+          description: Cover art for the song (optional).
+        duration_seconds:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When the song was added.
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When the song was last updated.
+      required:
+      - artist
+      - created_at
+      - id
+      - owner
+      - status
+      - title
+      - updated_at
+    SongRequest:
+      type: object
+      description: Serializer for the Song model.
+      properties:
+        title:
+          type: string
+        artist:
+          type: string
+        is_public:
+          type: boolean
+          description: If true, the song is visible in the public feed. If false,
+            only the owner can see it.
+        album:
+          type: string
+          description: The album this song belongs to (optional).
+          maxLength: 255
+        audio_file:
+          type: string
+          format: binary
+          nullable: true
+          description: The audio file for the song.
+        cover_image:
+          type: string
+          format: binary
+          nullable: true
+          description: Cover art for the song (optional).
+        duration_seconds:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+      required:
+      - artist
+      - title
+    StatusEnum:
+      enum:
+      - pending
+      - processing
+      - ready
+      - failed
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `processing` - Processing
+        * `ready` - Ready
+        * `failed` - Failed
+    TokenObtainPair:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          readOnly: true
+      required:
+      - access
+      - refresh
+    TokenObtainPairRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - username
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+      required:
+      - access
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - refresh
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+tags:
+- name: auth
+  description: Registration & JWT authentication
+- name: songs
+  description: Song CRUD, upload & filtering
+- name: profiles
+  description: User profiles & avatars
+- name: feed
+  description: Public song feed
+- name: health
+  description: Service health checks

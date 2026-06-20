@@ -70,7 +70,7 @@ def health_check(request):
 # ── Authentication ─────────────────────────────────────────────────────────────
 
 
-@extend_schema(tags=["Authentication"])
+@extend_schema(tags=["aut"])
 class RegisterView(generics.CreateAPIView):
     """
     API endpoint for registering a new user.
@@ -87,7 +87,7 @@ class RegisterView(generics.CreateAPIView):
 # ── Songs ──────────────────────────────────────────────────────────────────────
 
 
-@extend_schema(tags=["Songs"])
+@extend_schema(tags=["songs"])
 class SongViewSet(viewsets.ModelViewSet):
     """
     API endpoint for managing songs.

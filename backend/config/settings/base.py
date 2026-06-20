@@ -268,15 +268,32 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "Music Stream App API",
     "DESCRIPTION": (
         "API for a full-stack dockerized music streaming application. "
-        "Built with Django, Django REST Framework, and OpenAPI 3."
+        "Built with Django, Django REST Framework, and OpenAPI 3. "
+        "Supports user auth, song upload, async audio processing, "
+        "filtering, and S3-backed media storage."
     ),
-    "VERSION": "0.1.0",
+    # Frozen at v1.0.0 — bump only when the API contract intentionally changes.
+    "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Tells Spectacular our resource endpoints live under /api/v1/.
+    # Keeps version prefix out of operation IDs and groups paths cleanly.
+    "SCHEMA_PATH_PREFIX": r"/api/v[0-9]+",
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SORT_OPERATIONS": False,
     "SWAGGER_UI_SETTINGS": {
         "deepLinking": True,
         "persistAuthorization": True,
         "displayOperationId": False,
     },
+    "TAGS": [
+        {"name": "auth", "description": "Registration & JWT authentication"},
+        {"name": "songs", "description": "Song CRUD, upload & filtering"},
+        {"name": "profiles", "description": "User profiles & avatars"},
+        {"name": "feed", "description": "Public song feed"},
+        {"name": "health", "description": "Service health checks"},
+    ],
+    "CONTACT": {"name": "Faraz"},
+    "LICENSE": {"name": "MIT"},
 }
 
 SIMPLE_JWT = {

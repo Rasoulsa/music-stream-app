@@ -98,6 +98,17 @@ dev-createsuperuser:	## Create Django superuser (dev)
 dev-collectstatic:	## Run collectstatic (dev)
 	$(DEV) exec backend /app/.venv/bin/python manage.py collectstatic --noinput
 
+.PHONY: schema-freeze
+schema-freeze:		## Regenerate & freeze the OpenAPI schema
+	$(DEV) exec backend /app/.venv/bin/python manage.py spectacular \
+		--file api/schema.yml --validate
+	@echo "✅ Schema frozen to backend/api/schema.yml"
+
+.PHONY: schema-check
+schema-check:		## Verify live schema matches frozen schema
+	$(DEV) exec backend /app/.venv/bin/python -m pytest \
+		music/tests/test_api_contract.py -v
+
 # -----------------------------------------------------------------------------
 # Production
 # -----------------------------------------------------------------------------

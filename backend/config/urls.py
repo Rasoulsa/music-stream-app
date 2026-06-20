@@ -1,5 +1,9 @@
 """
 Root URL configuration.
+
+API is versioned under /api/v1/.
+Health check stays UNVERSIONED at /api/health/ so Docker/Nginx
+healthchecks never break across API version bumps.
 """
 
 from django.conf import settings
@@ -20,35 +24,33 @@ from music.views import RegisterView, health_check
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    # Health check
+    # ── Health check (UNVERSIONED — infra/healthchecks) ─────────────
     path("api/health/", health_check, name="health-check"),
-    # Authentication
+    # ── Authentication (versioned) ──────────────────────────────────
     path(
-        "api/auth/register/",
+        "api/v1/auth/register/",
         RegisterView.as_view(),
         name="register",
     ),
     path(
-        "api/auth/login/",
+        "api/v1/auth/login/",
         TokenObtainPairView.as_view(),
         name="token-obtain-pair",
     ),
     path(
-        "api/auth/refresh/",
+        "api/v1/auth/refresh/",
         TokenRefreshView.as_view(),
         name="token-refresh",
     ),
-    # API endpoints
-    path("api/", include("music.urls")),
-    # OpenAPI schema (raw JSON/YAML)
+    # ── Versioned API endpoints ─────────────────────────────────────
+    path("api/v1/", include("music.urls")),
+    # ── OpenAPI schema (unversioned — always current contract) ──────
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
-    # Swagger UI (interactive docs)
     path(
         "api/docs/",
         SpectacularSwaggerView.as_view(url_name="schema"),
         name="swagger-ui",
     ),
-    # ReDoc (clean documentation view)
     path(
         "api/redoc/",
         SpectacularRedocView.as_view(url_name="schema"),
@@ -57,6 +59,6 @@ urlpatterns = [
 ]
 
 # Serve uploaded media files
-# NOTE: In production with nginx, nginx should serve /media/ directly.
+# NOTE: In production with nginx, nginx serves /media/ directly.
 # For local Docker testing over HTTP, Django/Gunicorn handles it here.
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

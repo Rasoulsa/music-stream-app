@@ -5,6 +5,7 @@ Tests for search, filtering, and ordering on the Song API.
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -71,14 +72,14 @@ def songs(db, user):
 
 @pytest.mark.django_db
 def test_search_by_artist(api_client, songs):
-    response = api_client.get("/api/songs/?search=beatles")
+    response = api_client.get(reverse("song-list") + "?search=beatles")
     assert response.status_code == status.HTTP_200_OK
     assert response.data["count"] == 2
 
 
 @pytest.mark.django_db
 def test_search_by_title(api_client, songs):
-    response = api_client.get("/api/songs/?search=love")
+    response = api_client.get(reverse("song-list") + "?search=love")
     assert response.status_code == status.HTTP_200_OK
     assert response.data["count"] == 1
     assert response.data["results"][0]["title"] == "Love Story"
@@ -86,7 +87,7 @@ def test_search_by_title(api_client, songs):
 
 @pytest.mark.django_db
 def test_filter_by_artist(api_client, songs):
-    response = api_client.get("/api/songs/?artist=queen")
+    response = api_client.get(reverse("song-list") + "?artist=queen")
     assert response.status_code == status.HTTP_200_OK
     assert response.data["count"] == 1
     assert response.data["results"][0]["artist"] == "Queen"
@@ -94,7 +95,7 @@ def test_filter_by_artist(api_client, songs):
 
 @pytest.mark.django_db
 def test_filter_by_min_duration(api_client, songs):
-    response = api_client.get("/api/songs/?min_duration=300")
+    response = api_client.get(reverse("song-list") + "?min_duration=300")
     assert response.status_code == status.HTTP_200_OK
     assert response.data["count"] == 1
     assert response.data["results"][0]["title"] == "Bohemian Rhapsody"
@@ -102,7 +103,9 @@ def test_filter_by_min_duration(api_client, songs):
 
 @pytest.mark.django_db
 def test_filter_by_duration_range(api_client, songs):
-    response = api_client.get("/api/songs/?min_duration=200&max_duration=300")
+    response = api_client.get(
+        reverse("song-list") + "?min_duration=200&max_duration=300"
+    )
     assert response.status_code == status.HTTP_200_OK
     # Let It Be (243) and Love Story (235)
     assert response.data["count"] == 2
@@ -110,7 +113,7 @@ def test_filter_by_duration_range(api_client, songs):
 
 @pytest.mark.django_db
 def test_ordering_by_title_ascending(api_client, songs):
-    response = api_client.get("/api/songs/?ordering=title")
+    response = api_client.get(reverse("song-list") + "?ordering=title")
     assert response.status_code == status.HTTP_200_OK
     titles = [s["title"] for s in response.data["results"]]
     assert titles == sorted(titles)
@@ -118,7 +121,7 @@ def test_ordering_by_title_ascending(api_client, songs):
 
 @pytest.mark.django_db
 def test_ordering_by_duration_descending(api_client, songs):
-    response = api_client.get("/api/songs/?ordering=-duration_seconds")
+    response = api_client.get(reverse("song-list") + "?ordering=-duration_seconds")
     assert response.status_code == status.HTTP_200_OK
     durations = [s["duration_seconds"] for s in response.data["results"]]
     assert durations == sorted(durations, reverse=True)
@@ -126,7 +129,7 @@ def test_ordering_by_duration_descending(api_client, songs):
 
 @pytest.mark.django_db
 def test_search_and_ordering_combined(api_client, songs):
-    response = api_client.get("/api/songs/?search=beatles&ordering=title")
+    response = api_client.get(reverse("song-list") + "?search=beatles&ordering=title")
     assert response.status_code == status.HTTP_200_OK
     assert response.data["count"] == 2
     titles = [s["title"] for s in response.data["results"]]

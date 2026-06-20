@@ -24,7 +24,7 @@ This project is being built step by step with a professional Git/GitHub workflow
 - Deploy first to a VPS
 - Later migrate or extend deployment to AWS/cloud
 
-## 🛠️ Planned Tech Stack
+## 🛠️ Tech Stack
 
 | Layer | Technology |
 |---|---|
@@ -33,75 +33,60 @@ This project is being built step by step with a professional Git/GitHub workflow
 | Database | PostgreSQL |
 | Cache / Broker | Redis |
 | Background Jobs | Celery |
-| Storage | MinIO locally, S3 later |
+| Storage | MinIO locally, S3 in production |
 | Containerization | Docker, Docker Compose |
-| Reverse Proxy | Nginx or Traefik |
+| Reverse Proxy | Nginx |
 | Testing | pytest, Vitest, React Testing Library |
 | CI/CD | GitHub Actions |
 | Deployment | VPS first, cloud later |
 
-## ✨ Planned Features
+## ✨ Features
 
-- [ ] User registration and login
-- [ ] JWT authentication
-- [ ] Upload songs
-- [ ] Stream/play songs
-- [ ] Song list and search
+- [x] User registration and login
+- [x] JWT authentication
+- [x] Upload songs
+- [x] Stream/play songs
+- [x] Song list and search
+- [x] Background audio processing (Celery)
+- [x] Dockerized development and production environments
+- [x] Automated backend tests with 100% coverage
+- [x] CI/CD pipeline
+- [x] Versioned REST API (`/api/v1/`) with frozen contract
 - [ ] Playlists
 - [ ] Favorite/liked songs
-- [ ] Background audio processing
-- [ ] Dockerized development environment
-- [ ] Automated tests
-- [ ] CI/CD pipeline
+- [ ] Frontend (React + TypeScript)
 - [ ] Live VPS deployment
 
 ## 📐 Architecture
-
-Initial planned architecture:
 
 ```text
 Browser
    |
    v
-Reverse Proxy
+Nginx :80
    |
-   |--- Frontend: React + TypeScript
-   |
-   |--- Backend: Django REST API
-            |
-            |--- PostgreSQL
-            |--- Redis
-            |--- Celery
-            |--- MinIO/S3
+   |--- /static/   → served directly by Nginx
+   |--- /media/    → served by MinIO (or Nginx in local-disk mode)
+   |--- /api/      → Gunicorn :8000 (internal) → Django
+                            |
+                            |--- PostgreSQL
+                            |--- Redis
+                            |--- Celery Worker
+                            |--- MinIO / S3
 ```
 
-## 🚀 Running Locally
+## 🌐 API
 
-Instructions will be added as the project develops.
+The backend exposes a versioned REST API. All resource endpoints live under `/api/v1/`.
+Operational endpoints are intentionally unversioned so they stay stable across API versions.
 
-## 🧪 Testing
+| Type | Example endpoints |
+|------|------------------|
+| Versioned | `/api/v1/songs/`, `/api/v1/feed/`, `/api/v1/users/me/` |
+| Unversioned | `/api/health/`, `/api/schema/`, `/api/docs/` |
 
-Testing setup will include:
-
-- Backend: pytest + pytest-django
-- Frontend: Vitest + React Testing Library
-
-### Test Coverage
-
-Coverage is measured with `pytest-cov` and enforced in CI (minimum 85%).
-
-# Run tests with coverage report
-
-```bash
-uv run pytest --cov --cov-report=term-missing
-```
-
-# Generate an HTML report
-
-```bash
-uv run pytest --cov --cov-report=html
-open htmlcov/index.html
-```
+- Breaking changes will introduce `/api/v2/` — `/api/v1/` is never mutated.
+- The OpenAPI schema is **frozen**: a contract test fails if the public API shape drifts unintentionally.
 
 ## 🗄️ Object Storage
 
@@ -109,70 +94,92 @@ Media files (audio, avatars) are stored in S3-compatible object storage.
 
 | Environment | Storage |
 |-------------|---------|
-| Local dev   | Local disk (`USE_S3=false`) |
-| Docker      | MinIO (`USE_S3=true`) |
-| Production  | AWS S3 (`USE_S3=true`) |
+| Local dev | Local disk (`USE_S3=false`) |
+| Docker | MinIO (`USE_S3=true`) |
+| Production | AWS S3 (`USE_S3=true`) |
 
 MinIO console (Docker): http://localhost:9001 (minioadmin / minioadmin123)
 
-Switching between MinIO and S3 requires **no code changes** — only env vars.
+Switching between MinIO and S3 requires **no code changes** — only environment variables change.
 
 ## ⚡ Caching (Redis)
 
 The public feed is cached in Redis for fast, low-load reads.
 
 | Environment | Cache backend |
-|-------------|---------|
-| Local dev   | In-memory (REDIS_URL empty) |
-| Docker      | Redis 7 (redis://redis:6379/1) |
-| Production  | Redis (managed/self-hosted) |
+|-------------|---------------|
+| Local dev | In-memory (`REDIS_URL` empty) |
+| Docker | Redis 7 (`redis://redis:6379/1`) |
+| Production | Redis (managed or self-hosted) |
 
 - Default feed is cached for 60 seconds and invalidated automatically when songs change.
 - Filtered/searched feed queries always hit the database (fresh results).
-- Health check endpoint: GET /api/health/ (reports API/cache status).
+- Health check: `GET /api/health/` reports API and cache status.
 
-Redis also serves as the Celery broker foundation for background tasks.
+Redis also serves as the Celery broker for background tasks.
 
-## Production Serving (Nginx + Gunicorn)
+## 🔄 Background Tasks (Celery)
 
-Nginx is the single public entry point (port 80) and reverse-proxies to
-Gunicorn (internal only).
+Audio processing runs asynchronously via Celery workers.
+
+| Environment | Broker |
+|-------------|--------|
+| Docker / Production | Redis (`redis://redis:6379/0`) |
+
+- Song uploads trigger a processing task automatically via Django signals.
+- Task retries are configured for resilience against transient failures.
+
+## 🌍 Production Serving (Nginx + Gunicorn)
+
+Nginx is the single public entry point (port 80) and reverse-proxies to Gunicorn (internal only).
 
 ```text
 internet → Nginx :80 → Gunicorn :8000 (internal) → Django
-                     → /static/  served directly
+                     → /static/  served directly by Nginx
                      → /media/   served by MinIO (or Nginx in local-disk mode)
 ```
 
-## Running the Project
+## 🚀 Running Locally
 
-Two environments via Docker Compose overrides (one codebase):
+### Development
 
 ```bash
-# Development (hot-reload, exposed ports, DEBUG on)
-make dev-up          # → http://localhost:8000
+make dev-up        # starts all services with hot-reload
+                   # → http://localhost:8000
 ```
 
-# Production-like (Nginx + Gunicorn, DEBUG off, hardened)
-make prod-up         # → http://localhost
+### Production-like
 
+```bash
+make prod-up       # Nginx + Gunicorn, DEBUG off, hardened
+                   # → http://localhost
+```
 
-## 🚀 Running Locally
-Detailed setup instructions are evolving as the project progresses.
+## 🧪 Testing
 
+| Tool | Purpose |
+|------|---------|
+| pytest + pytest-django | Backend unit and integration tests |
+| pytest-cov | Coverage reporting (minimum 85%, currently 100%) |
+| Vitest + React Testing Library | Frontend tests (planned) |
+
+```bash
+# Run backend tests with coverage
+make dev-test
+
+# Generate HTML coverage report
+uv run pytest --cov --cov-report=html
+open htmlcov/index.html
+```
 
 ## 📦 Deployment Plan
 
-The project will be deployed in two stages:
-
 1. VPS deployment using Docker Compose
-2. Cloud deployment/migration, likely AWS
-
+2. Cloud deployment/migration (likely AWS)
 
 ## 📔 Development Journal
 
-For day-by-day implementation details, see the development see [`docs/JOURNAL.md`](docs/JOURNAL.md).
-
+For day-by-day implementation details, see [`docs/JOURNAL.md`](docs/JOURNAL.md).
 
 ## 📄 License
 
