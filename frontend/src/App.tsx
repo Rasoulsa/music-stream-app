@@ -1,13 +1,12 @@
-/**
- * Root component — just renders the route tree.
- * Layout, nav, and player now live inside the routes.
- */
-
+import { PlayerProvider } from './context/PlayerContext';
 import AppRoutes from './routes/AppRoutes';
-import './App.css';
 
 function App() {
-  return <AppRoutes />;
+  return (
+    <PlayerProvider>
+      <AppRoutes />
+    </PlayerProvider>
+  );
 }
 
 export default App;

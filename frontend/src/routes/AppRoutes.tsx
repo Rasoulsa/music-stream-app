@@ -13,9 +13,9 @@
  */
 
 import { Routes, Route } from 'react-router-dom';
+import { HomePage } from '../pages/HomePage';
 import Layout from '../components/Layout';
 import ProtectedRoute from '../components/ProtectedRoute';
-import HomePage from '../pages/HomePage';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import UploadPage from '../pages/UploadPage';

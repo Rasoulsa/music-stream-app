@@ -1,49 +1,159 @@
 /**
- * A fixed audio player bar for the currently selected song.
+ * Persistent global audio player bar.
+ * Reads the current song from PlayerContext and stays mounted
+ * across route changes so playback is uninterrupted.
  */
 
-import type { Song } from '../types';
+import { useRef, useEffect, useState } from 'react';
+import { usePlayer } from '../context/PlayerContext';
 
-interface AudioPlayerProps {
-  song: Song | null;
+function formatTime(seconds: number): string {
+  if (!seconds || isNaN(seconds)) return '0:00';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export function AudioPlayer({ song }: AudioPlayerProps) {
-  if (!song) {
+export function AudioPlayer() {
+  const {
+    currentSong,
+    isPlaying,
+    setIsPlaying,
+    togglePlay,
+    playNext,
+    playPrev,
+  } = usePlayer();
+
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+
+  // Sync play/pause state with the <audio> element
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (isPlaying) {
+      audio.play().catch(() => setIsPlaying(false));
+    } else {
+      audio.pause();
+    }
+  }, [isPlaying, currentSong, setIsPlaying]);
+
+  // Apply volume
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
+    }
+  }, [volume]);
+
+  if (!currentSong) {
     return null;
   }
 
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = Number(e.target.value);
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+      setCurrentTime(time);
+    }
+  };
+
   return (
-    <div className="audio-player">
-      <div className="audio-player__info">
-        {song.cover_image ? (
-          <img
-            src={song.cover_image}
-            alt={`${song.title} cover`}
-            className="audio-player__cover"
-          />
-        ) : (
-          <div className="audio-player__cover audio-player__cover--empty">
-            🎵
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--surface-2)] border-t border-[var(--border)] px-4 py-3">
+      <div className="max-w-5xl mx-auto flex items-center gap-4">
+        {/* Track info */}
+        <div className="flex items-center gap-3 w-1/4 min-w-0">
+          <div className="w-12 h-12 rounded-lg bg-[var(--surface-3)] overflow-hidden flex items-center justify-center text-xl flex-shrink-0">
+            {currentSong.cover_image ? (
+              <img
+                src={currentSong.cover_image}
+                alt={`${currentSong.title} cover`}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span>🎵</span>
+            )}
           </div>
-        )}
-        <div>
-          <div className="audio-player__title">{song.title}</div>
-          <div className="audio-player__artist">
-            {song.artist || song.owner || 'Unknown artist'}
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-[var(--text)] truncate">
+              {currentSong.title}
+            </div>
+            <div className="text-xs text-[var(--text-muted)] truncate">
+              {currentSong.artist || currentSong.owner || 'Unknown artist'}
+            </div>
           </div>
         </div>
-      </div>
 
-      <audio
-        key={song.id}
-        src={song.audio_file}
-        controls
-        autoPlay
-        className="audio-player__controls"
-      >
-        Your browser does not support the audio element.
-      </audio>
+        {/* Controls + progress */}
+        <div className="flex-1 flex flex-col items-center gap-1">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={playPrev}
+              className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+              aria-label="Previous"
+            >
+              ⏮
+            </button>
+            <button
+              onClick={togglePlay}
+              className="w-9 h-9 rounded-full bg-[var(--brand)] text-white flex items-center justify-center hover:opacity-90 transition-opacity"
+              aria-label={isPlaying ? 'Pause' : 'Play'}
+            >
+              {isPlaying ? '⏸' : '▶'}
+            </button>
+            <button
+              onClick={playNext}
+              className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+              aria-label="Next"
+            >
+              ⏭
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 w-full">
+            <span className="text-[10px] text-[var(--text-muted)] w-8 text-right">
+              {formatTime(currentTime)}
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={duration || 0}
+              value={currentTime}
+              onChange={handleSeek}
+              className="flex-1 h-1 accent-[var(--brand)] cursor-pointer"
+            />
+            <span className="text-[10px] text-[var(--text-muted)] w-8">
+              {formatTime(duration)}
+            </span>
+          </div>
+        </div>
+
+        {/* Volume */}
+        <div className="hidden sm:flex items-center gap-2 w-1/6">
+          <span className="text-sm">🔊</span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={volume}
+            onChange={(e) => setVolume(Number(e.target.value))}
+            className="flex-1 h-1 accent-[var(--brand)] cursor-pointer"
+          />
+        </div>
+
+        {/* Hidden audio element */}
+        <audio
+          key={currentSong.id}
+          ref={audioRef}
+          src={currentSong.audio_file}
+          onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+          onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+          onEnded={playNext}
+          autoPlay
+        />
+      </div>
     </div>
   );
 }

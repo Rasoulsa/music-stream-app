@@ -10,6 +10,13 @@ interface SongCardProps {
   onPlay: (song: Song) => void;
 }
 
+function formatDuration(seconds: number): string {
+  if (!seconds) return '';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 export function SongCard({ song, isActive, onPlay }: SongCardProps) {
   return (
     <div
@@ -22,9 +29,17 @@ export function SongCard({ song, isActive, onPlay }: SongCardProps) {
       `}
       onClick={() => onPlay(song)}
     >
-      {/* Artwork placeholder */}
-      <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-[var(--surface-3)] flex items-center justify-center text-2xl">
-        {isActive ? '▶️' : '🎵'}
+      {/* Artwork */}
+      <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-[var(--surface-3)] overflow-hidden flex items-center justify-center text-2xl">
+        {song.cover_image ? (
+          <img
+            src={song.cover_image}
+            alt={`${song.title} cover`}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <span>{isActive ? '▶️' : '🎵'}</span>
+        )}
       </div>
 
       {/* Info */}
@@ -40,7 +55,7 @@ export function SongCard({ song, isActive, onPlay }: SongCardProps) {
       {/* Duration / play hint */}
       <div className="flex-shrink-0 text-xs text-[var(--text-muted)]">
         {song.duration_seconds
-          ? `${Math.floor(song.duration_seconds / 60)}:${String(song.duration_seconds % 60).padStart(2, '0')}`
+          ? formatDuration(song.duration_seconds)
           : <span className="opacity-0 group-hover:opacity-100 transition-opacity">▶ Play</span>
         }
       </div>
