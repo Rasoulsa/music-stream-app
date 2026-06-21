@@ -18,3 +18,35 @@ export async function getSongs(
   });
   return response.data;
 }
+
+export interface UploadSongPayload {
+  title: string;
+  artist?: string;
+  album?: string;
+  audio_file: File;
+  cover_image?: File | null;
+  is_public: boolean;
+}
+
+export async function uploadSong(
+  payload: UploadSongPayload,
+  onProgress?: (percent: number) => void,
+): Promise<Song> {
+  const form = new FormData();
+  form.append('title', payload.title);
+  if (payload.artist) form.append('artist', payload.artist);
+  if (payload.album) form.append('album', payload.album);
+  form.append('audio_file', payload.audio_file);
+  if (payload.cover_image) form.append('cover_image', payload.cover_image);
+  form.append('is_public', String(payload.is_public));
+
+  const response = await apiClient.post<Song>('/songs/', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: (e) => {
+      if (onProgress && e.total) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    },
+  });
+  return response.data;
+}

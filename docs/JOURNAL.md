@@ -709,3 +709,29 @@ All 79 tests pass, 100% coverage.
 
 ### Next (Day 21)
 - API client auth: login / register / JWT access+refresh handling
+
+## Day 24 — Upload Song UI (2026-06-22)
+
+**Branch:** `feat/upload-song-ui`
+
+### Goal
+Build a real upload form so authenticated users can add songs with audio,
+metadata, optional cover art, and a public/private toggle.
+
+### What I built
+- `api/songs.ts` — `upload()` using `FormData` + axios `onUploadProgress`.
+- `hooks/useUploadSong.ts` — mutation hook with progress, field errors,
+  and general error parsing from DRF responses.
+- `utils/fileValidation.ts` — client-side type/size checks for audio & images.
+- `pages/UploadPage.tsx` — full form: audio dropzone, auto-filled title,
+  cover preview, public toggle, live progress bar, redirect on success.
+
+### Backend note
+Confirmed `SongViewSet` includes `MultiPartParser`/`FormParser` so multipart
+uploads are accepted. File served back via MinIO/S3 URL in `audio_file`.
+
+### Decisions
+- Validate on the client first (fast feedback) but trust the server as the
+  source of truth — DRF field errors are mapped back onto inputs.
+- Auto-fill title from filename to reduce friction.
+- Reused `apiClient` so JWT refresh works during long uploads.
