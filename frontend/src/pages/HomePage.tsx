@@ -1,21 +1,17 @@
 /**
- * Home page — song list with backend connectivity indicator.
+ * Home page — public song feed.
  */
 
-import { HealthCheck } from '../components/HealthCheck';
+import { usePlayer } from '../context/PlayerContext';
 import { SongList } from '../components/SongList';
-import type { Song } from '../types';
 
-interface HomePageProps {
-  activeSong: Song | null;
-  onPlay: (song: Song) => void;
-}
+export default function HomePage() {
+  const { activeSong, playSong } = usePlayer();
 
-export default function HomePage({ activeSong, onPlay }: HomePageProps) {
   return (
-    <main>
-      <HealthCheck />
-      <SongList activeSong={activeSong} onPlay={onPlay} />
-    </main>
+    <section>
+      <h2>Browse songs</h2>
+      <SongList activeSong={activeSong} onPlay={playSong} />
+    </section>
   );
 }

@@ -1,15 +1,18 @@
-/**
- * Login page.
- */
-
 import { useState, type FormEvent } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../hooks/useAuth';
+
+interface LocationState {
+  from?: { pathname: string };
+}
 
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const from = (location.state as LocationState)?.from?.pathname ?? '/';
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -22,7 +25,7 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await login({ username, password });
-      navigate('/'); // Option A
+      navigate(from, { replace: true }); // back to attempted page, or '/'
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 401) {
         setError('Invalid username or password.');
