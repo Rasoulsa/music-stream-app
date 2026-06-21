@@ -1,18 +1,47 @@
-import { usePlayer } from '../context/PlayerContext';
+/**
+ * Home page — shows the user's songs.
+ */
+
+import { useSongs } from '../hooks/useSongs';
 import { SongList } from '../components/SongList';
 
-export default function HomePage() {
-  const { activeSong, playSong } = usePlayer();
+export function HomePage() {
+  const { songs, isLoading, error, refetch } = useSongs();
 
   return (
-    <div>
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold">Browse songs</h2>
-        <p className="text-[var(--text-muted)] text-sm mt-1">
-          Discover and play music from the community
-        </p>
-      </div>
-      <SongList activeSong={activeSong} onPlay={playSong} />
+    <div className="max-w-5xl mx-auto px-4 py-8 pb-28">
+      <h1 className="text-2xl font-bold text-[var(--text)] mb-6">
+        Your Library
+      </h1>
+
+      {isLoading && (
+        <div className="text-center text-[var(--text-muted)] py-12">
+          Loading songs…
+        </div>
+      )}
+
+      {error && (
+        <div className="text-center py-12">
+          <p className="text-red-400 mb-3">{error}</p>
+          <button
+            onClick={refetch}
+            className="px-4 py-2 rounded-lg bg-[var(--brand)] text-white text-sm hover:opacity-90"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {!isLoading && !error && songs.length === 0 && (
+        <div className="text-center text-[var(--text-muted)] py-12">
+          <p className="text-lg mb-2">No songs yet 🎧</p>
+          <p className="text-sm">Upload your first track to get started.</p>
+        </div>
+      )}
+
+      {!isLoading && !error && songs.length > 0 && (
+        <SongList songs={songs} />
+      )}
     </div>
   );
 }
