@@ -33,14 +33,14 @@ export function SongCard({ song, isActive, onPlay }: SongCardProps) {
           {song.title}
         </p>
         <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">
-          {song.artist || song.uploaded_by || 'Unknown artist'}
+          {song.artist || song.owner || 'Unknown artist'}
         </p>
       </div>
 
       {/* Duration / play hint */}
       <div className="flex-shrink-0 text-xs text-[var(--text-muted)]">
-        {song.duration
-          ? `${Math.floor(song.duration / 60)}:${String(song.duration % 60).padStart(2, '0')}`
+        {song.duration_seconds
+          ? `${Math.floor(song.duration_seconds / 60)}:${String(song.duration_seconds % 60).padStart(2, '0')}`
           : <span className="opacity-0 group-hover:opacity-100 transition-opacity">▶ Play</span>
         }
       </div>
