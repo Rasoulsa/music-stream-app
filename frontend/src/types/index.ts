@@ -53,6 +53,9 @@ export interface Song {
   audio_file: string;
   cover_image: string | null;
   duration_seconds: number;
+  owner: string;
+  is_public: boolean;
+  status: string;
   created_at: string;
   updated_at: string;
 }

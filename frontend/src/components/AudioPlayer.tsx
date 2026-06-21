@@ -29,7 +29,9 @@ export function AudioPlayer({ song }: AudioPlayerProps) {
         )}
         <div>
           <div className="audio-player__title">{song.title}</div>
-          <div className="audio-player__artist">{song.artist}</div>
+          <div className="audio-player__artist">
+            {song.artist || song.owner || 'Unknown artist'}
+          </div>
         </div>
       </div>
 

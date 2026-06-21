@@ -20,7 +20,6 @@ export function SongList({ activeSong, onPlay }: SongListProps) {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<Status>('loading');
 
-  // Debounce: wait 400ms after typing stops before calling the API.
   useEffect(() => {
     const timer = setTimeout(() => {
       setStatus('loading');
@@ -29,32 +28,44 @@ export function SongList({ activeSong, onPlay }: SongListProps) {
           setSongs(data.results);
           setStatus('success');
         })
-        .catch(() => {
-          setStatus('error');
-        });
+        .catch(() => setStatus('error'));
     }, 400);
 
     return () => clearTimeout(timer);
   }, [search]);
 
   return (
-    <div className="song-list">
+    <div>
       <SearchBar value={search} onChange={setSearch} />
 
-      {status === 'loading' && <p>Loading songs...</p>}
+      {status === 'loading' && (
+        <div className="flex flex-col gap-3">
+          {[...Array(4)].map((_, i) => (
+            <div
+              key={i}
+              className="h-20 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] animate-pulse"
+            />
+          ))}
+        </div>
+      )}
 
       {status === 'error' && (
-        <p style={{ color: 'red' }}>
-          ❌ Could not load songs. Is the backend running?
-        </p>
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-[var(--surface-2)] border border-[var(--danger)] text-[var(--danger)] text-sm">
+          <span>❌</span>
+          <span>Could not load songs. Is the backend running?</span>
+        </div>
       )}
 
       {status === 'success' && songs.length === 0 && (
-        <p>No songs found. Try a different search.</p>
+        <div className="text-center py-16 text-[var(--text-muted)]">
+          <p className="text-4xl mb-3">🎵</p>
+          <p className="font-medium">No songs found</p>
+          <p className="text-sm mt-1">Try a different search term</p>
+        </div>
       )}
 
       {status === 'success' && songs.length > 0 && (
-        <div className="song-list__grid">
+        <div className="flex flex-col gap-2">
           {songs.map((song) => (
             <SongCard
               key={song.id}

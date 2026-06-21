@@ -1,14 +1,10 @@
-/**
- * Register page — creates account then auto-logs in.
- */
-
 import { useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../hooks/useAuth';
 
 export default function RegisterPage() {
-  const { register } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const [username, setUsername] = useState('');
@@ -22,18 +18,21 @@ export default function RegisterPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await register({ username, email: email || undefined, password });
-      navigate('/'); // Option A
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/auth/register/`,
+        { username, email, password }
+      );
+      if (res.status === 201) {
+        await login({ username, password });
+        navigate('/');
+      }
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.data) {
-        const data = err.response.data as Record<string, string[] | string>;
-        const firstKey = Object.keys(data)[0];
-        const msg = Array.isArray(data[firstKey])
-          ? (data[firstKey] as string[])[0]
-          : String(data[firstKey]);
-        setError(msg ?? 'Registration failed.');
+        const data = err.response.data;
+        const first = Object.values(data)[0];
+        setError(Array.isArray(first) ? first[0] : String(first));
       } else {
-        setError('Something went wrong. Try again.');
+        setError('Registration failed. Try again.');
       }
     } finally {
       setSubmitting(false);
@@ -41,45 +40,75 @@ export default function RegisterPage() {
   };
 
   return (
-    <main style={{ maxWidth: 360, margin: '3rem auto', padding: '0 1rem' }}>
-      <h2>Create account</h2>
-      <form onSubmit={handleSubmit}>
-        <label>
-          Username
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoComplete='username'
-            required
-          />
-        </label>
-        <label>
-          Email (optional)
-          <input
-            type='email'
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete='email'
-          />
-        </label>
-        <label>
-          Password
-          <input
-            type='password'
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete='new-password'
-            required
-          />
-        </label>
-        {error && <p style={{ color: 'crimson' }}>{error}</p>}
-        <button type='submit' disabled={submitting}>
-          {submitting ? 'Creating…' : 'Create account'}
-        </button>
-      </form>
-      <p>
-        Have an account? <Link to='/login'>Log in</Link>
-      </p>
-    </main>
+    <div className="min-h-[70vh] flex items-center justify-center">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <span className="text-5xl">🎵</span>
+          <h1 className="text-2xl font-bold mt-3">Create account</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-1">Start sharing your music</p>
+        </div>
+
+        <form
+          onSubmit={handleSubmit}
+          className="bg-[var(--surface-2)] border border-[var(--border)] rounded-2xl p-6 flex flex-col gap-4"
+        >
+          <label>
+            Username
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+              placeholder="your_username"
+              required
+            />
+          </label>
+
+          <label>
+            Email
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              placeholder="you@example.com"
+              required
+            />
+          </label>
+
+          <label>
+            Password
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+              placeholder="••••••••"
+              required
+            />
+          </label>
+
+          {error && (
+            <p className="text-sm text-[var(--danger)] bg-[var(--danger)]/10 px-3 py-2 rounded-lg">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="mt-1 w-full py-2.5 rounded-lg bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-black font-bold transition-colors disabled:opacity-50"
+          >
+            {submitting ? 'Creating account…' : 'Create account'}
+          </button>
+        </form>
+
+        <p className="text-center text-sm text-[var(--text-muted)] mt-4">
+          Already have an account?{' '}
+          <Link to="/login" className="text-[var(--brand)] font-medium">
+            Log in
+          </Link>
+        </p>
+      </div>
+    </div>
   );
 }
