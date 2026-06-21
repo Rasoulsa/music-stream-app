@@ -1,9 +1,8 @@
 /**
- * Displays a single song as a clickable card.
+ * Single song card with play button.
  */
 
 import type { Song } from '../types';
-import { formatDuration } from '../utils/format';
 
 interface SongCardProps {
   song: Song;
@@ -13,26 +12,42 @@ interface SongCardProps {
 
 export function SongCard({ song, isActive, onPlay }: SongCardProps) {
   return (
-    <button
-      type="button"
-      className={`song-card ${isActive ? 'song-card--active' : ''}`}
+    <div
+      className={`
+        relative flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer group
+        ${isActive
+          ? 'bg-[var(--surface-3)] border-[var(--brand)]'
+          : 'bg-[var(--surface-2)] border-[var(--border)] hover:border-[var(--surface-3)] hover:bg-[var(--surface-3)]'
+        }
+      `}
       onClick={() => onPlay(song)}
     >
-      <div className="song-card__cover">
-        {song.cover_image ? (
-          <img src={song.cover_image} alt={`${song.title} cover`} />
-        ) : (
-          <div className="song-card__placeholder">🎵</div>
-        )}
+      {/* Artwork placeholder */}
+      <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-[var(--surface-3)] flex items-center justify-center text-2xl">
+        {isActive ? '▶️' : '🎵'}
       </div>
-      <div className="song-card__info">
-        <span className="song-card__title">{song.title}</span>
-        <span className="song-card__artist">{song.artist}</span>
-        {song.album && <span className="song-card__album">{song.album}</span>}
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <p className={`font-semibold truncate text-sm ${isActive ? 'text-[var(--brand)]' : 'text-[var(--text)]'}`}>
+          {song.title}
+        </p>
+        <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">
+          {song.artist || song.uploaded_by || 'Unknown artist'}
+        </p>
       </div>
-      <span className="song-card__duration">
-        {formatDuration(song.duration_seconds)}
-      </span>
-    </button>
+
+      {/* Duration / play hint */}
+      <div className="flex-shrink-0 text-xs text-[var(--text-muted)]">
+        {song.duration
+          ? `${Math.floor(song.duration / 60)}:${String(song.duration % 60).padStart(2, '0')}`
+          : <span className="opacity-0 group-hover:opacity-100 transition-opacity">▶ Play</span>
+        }
+      </div>
+
+      {isActive && (
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[var(--brand)] rounded-r-full" />
+      )}
+    </div>
   );
 }

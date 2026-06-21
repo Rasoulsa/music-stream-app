@@ -1,7 +1,5 @@
 /**
- * App layout shell: Navbar + page content + persistent AudioPlayer.
- *
- * The AudioPlayer lives here so playback survives route changes.
+ * App layout shell.
  */
 
 import { useState } from 'react';
@@ -16,9 +14,9 @@ export default function Layout() {
 
   return (
     <PlayerContext.Provider value={{ activeSong, playSong: setActiveSong }}>
-      <div className='app'>
+      <div className="min-h-screen flex flex-col">
         <Navbar />
-        <main style={{ padding: '1.5rem' }}>
+        <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
           <Outlet />
         </main>
         <AudioPlayer song={activeSong} />

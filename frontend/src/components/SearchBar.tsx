@@ -1,5 +1,5 @@
 /**
- * Search input for filtering songs.
+ * Controlled search input.
  */
 
 interface SearchBarProps {
@@ -9,12 +9,17 @@ interface SearchBarProps {
 
 export function SearchBar({ value, onChange }: SearchBarProps) {
   return (
-    <input
-      type="search"
-      className="search-bar"
-      placeholder="Search by title, artist, or album..."
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    />
+    <div className="relative mb-6">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
+        🔍
+      </span>
+      <input
+        type="search"
+        placeholder="Search songs..."
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="pl-9 w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-lg py-2.5 text-sm focus:border-[var(--brand)] outline-none transition-colors"
+      />
+    </div>
   );
 }
