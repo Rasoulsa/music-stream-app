@@ -684,3 +684,28 @@ shape drifts.
 it applies to dev *and* production. The freeze enforces the contract everywhere.
 
 All 79 tests pass, 100% coverage.
+
+
+## Day 20 — Frontend Foundation
+
+**Phase 3 begins.** Set up the React + TypeScript + Vite frontend skeleton.
+
+### Done
+- Scaffolded `frontend/` (Vite `react-ts` template)
+- Installed core deps: react-router-dom, axios, @tanstack/react-query
+- Established scalable folder structure (api / features / pages / routes / lib / hooks)
+- Built typed axios client reading `VITE_API_BASE_URL`
+- Added typed env accessor (`lib/env.ts`)
+- Mirrored backend serializers into `api/types.ts` (Song, Profile, Paginated)
+- Wired React Query + BrowserRouter providers
+- Home page verifies live backend connectivity via /health/
+- Configured CORS on backend for localhost:5173
+- Added Prettier + npm scripts
+
+### Verified
+- `npm run dev` serves on :5173
+- Frontend successfully reaches backend → status "ok"
+- Full-stack dev loop confirmed working
+
+### Next (Day 21)
+- API client auth: login / register / JWT access+refresh handling

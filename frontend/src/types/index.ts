@@ -6,6 +6,7 @@
 export interface HealthResponse {
   status: string;
   service: string;
+  cache?: string;
 }
 
 // A single Song from the backend
