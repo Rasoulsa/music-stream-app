@@ -28,6 +28,7 @@ interface AuthContextValue {
   login: (creds: LoginCredentials) => Promise<void>;
   register: (creds: RegisterCredentials) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -82,6 +83,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [login],
   );
 
+  // Re-fetch the current user after profile edits so the navbar/header
+  // reflect changes immediately without a full page reload.
+  const refreshUser = useCallback(async () => {
+    const me = await authApi.getMe();
+    setUser(me);
+  }, []);
+
   const value: AuthContextValue = {
     user,
     isLoading,
@@ -89,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     register,
     logout,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

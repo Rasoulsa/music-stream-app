@@ -12,6 +12,7 @@ export interface HealthResponse {
 // ─── Auth & User ──────────────────────────────────────
 
 export interface User {
+  id?: number;
   username: string;
   email: string;
   display_name: string;
@@ -20,6 +21,12 @@ export interface User {
   song_count: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface UpdateProfilePayload {
+  display_name?: string;
+  bio?: string;
+  email?: string;
 }
 
 export interface LoginCredentials {

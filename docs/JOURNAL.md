@@ -735,3 +735,35 @@ uploads are accepted. File served back via MinIO/S3 URL in `audio_file`.
   source of truth — DRF field errors are mapped back onto inputs.
 - Auto-fill title from filename to reduce friction.
 - Reused `apiClient` so JWT refresh works during long uploads.
+
+## Day 25 — Profile Page + Edit (2026-06-22)
+
+### Goal
+Build a profile page that displays the current user's info and allows
+inline editing of display name, email, bio, and avatar.
+
+### What I built
+- `types/user.ts` — User and UpdateProfilePayload types
+- `api/users.ts` — getCurrentUser, updateProfile, uploadAvatar
+- `hooks/useProfile.ts` — data fetching + save/avatar mutations with
+  loading/saving/error states
+- `components/profile/ProfileHeader.tsx` — read-only profile view
+- `components/profile/ProfileEditForm.tsx` — edit form with avatar
+  preview + bio char counter
+- `pages/ProfilePage.tsx` — view/edit toggle
+- Protected route `/profile` + nav link
+- `styles/profile.css`
+
+### Decisions
+- Avatar upload uses a separate multipart PATCH to keep JSON profile
+  updates clean and simple.
+- Avatar preview uses `URL.createObjectURL` for instant feedback before
+  the upload completes.
+- Bio capped at 500 chars with a live counter.
+
+### Issues fixed earlier today
+- Backend was hitting SQLite (`unable to open database file`) because the
+  container needed a clean `make dev-down && make dev-up-d`.
+- Audio playback failed with `ERR_SSL_PROTOCOL_ERROR` — MinIO dev URLs
+  were generated as `https://localhost:9000`. Fixed by adding
+  `AWS_S3_URL_PROTOCOL=http:` to `.env.dev` / `.env.example`.
