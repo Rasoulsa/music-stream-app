@@ -75,7 +75,7 @@ class ProfileSerializer(serializers.ModelSerializer):
     """Own profile (authenticated user) — includes email + total song count."""
 
     username = serializers.CharField(source="user.username", read_only=True)
-    email = serializers.EmailField(source="user.email", read_only=True)
+    email = serializers.EmailField(source="user.email", required=False)
     song_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -90,10 +90,18 @@ class ProfileSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["username", "email", "created_at", "updated_at"]
+        read_only_fields = ["username", "created_at", "updated_at"]
 
     def get_song_count(self, obj: Profile) -> int:
         return obj.user.songs.count()
+
+    def update(self, instance, validated_data):
+        # email lives on User, not Profile — handle it separately
+        user_data = validated_data.pop("user", {})
+        if "email" in user_data:
+            instance.user.email = user_data["email"]
+            instance.user.save(update_fields=["email"])
+        return super().update(instance, validated_data)
 
 
 class PublicProfileSerializer(serializers.ModelSerializer):
