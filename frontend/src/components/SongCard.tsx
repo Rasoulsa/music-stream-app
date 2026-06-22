@@ -1,13 +1,17 @@
 /**
- * Single song card with play button.
+ * Single song card with optional play button.
+ *
+ * isActive / onPlay are optional so the card can be used
+ * in feed / profile pages without a player context.
  */
 
+import { Link } from 'react-router-dom';
 import type { Song } from '../types';
 
 interface SongCardProps {
   song: Song;
-  isActive: boolean;
-  onPlay: (song: Song) => void;
+  isActive?: boolean;        // optional — defaults to false
+  onPlay?: (song: Song) => void; // optional — no-op if absent
 }
 
 function formatDuration(seconds: number): string {
@@ -17,17 +21,19 @@ function formatDuration(seconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export function SongCard({ song, isActive, onPlay }: SongCardProps) {
+export function SongCard({ song, isActive = false, onPlay }: SongCardProps) {
   return (
     <div
       className={`
-        relative flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer group
-        ${isActive
-          ? 'bg-[var(--surface-3)] border-[var(--brand)]'
-          : 'bg-[var(--surface-2)] border-[var(--border)] hover:border-[var(--surface-3)] hover:bg-[var(--surface-3)]'
+        relative flex items-center gap-4 p-4 rounded-xl border transition-all group
+        ${onPlay ? 'cursor-pointer' : 'cursor-default'}
+        ${
+          isActive
+            ? 'bg-[var(--surface-3)] border-[var(--brand)]'
+            : 'bg-[var(--surface-2)] border-[var(--border)] hover:border-[var(--surface-3)] hover:bg-[var(--surface-3)]'
         }
       `}
-      onClick={() => onPlay(song)}
+      onClick={() => onPlay?.(song)}
     >
       {/* Artwork */}
       <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-[var(--surface-3)] overflow-hidden flex items-center justify-center text-2xl">
@@ -44,20 +50,33 @@ export function SongCard({ song, isActive, onPlay }: SongCardProps) {
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className={`font-semibold truncate text-sm ${isActive ? 'text-[var(--brand)]' : 'text-[var(--text)]'}`}>
+        <p
+          className={`font-semibold truncate text-sm ${
+            isActive ? 'text-[var(--brand)]' : 'text-[var(--text)]'
+          }`}
+        >
           {song.title}
         </p>
-        <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">
+
+        {/* Owner — clickable link to their public profile */}
+        <Link
+          to={`/users/${song.owner}`}
+          className="text-xs text-[var(--text-muted)] truncate mt-0.5 hover:text-[var(--brand)] transition-colors"
+          onClick={(e) => e.stopPropagation()} // don't trigger onPlay
+        >
           {song.artist || song.owner || 'Unknown artist'}
-        </p>
+        </Link>
       </div>
 
       {/* Duration / play hint */}
       <div className="flex-shrink-0 text-xs text-[var(--text-muted)]">
-        {song.duration_seconds
-          ? formatDuration(song.duration_seconds)
-          : <span className="opacity-0 group-hover:opacity-100 transition-opacity">▶ Play</span>
-        }
+        {song.duration_seconds ? (
+          formatDuration(song.duration_seconds)
+        ) : onPlay ? (
+          <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+            ▶ Play
+          </span>
+        ) : null}
       </div>
 
       {isActive && (

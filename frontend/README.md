@@ -54,3 +54,18 @@ View and edit the authenticated user's profile.
 - Email
 - Bio (max 500, live counter)
 - Avatar (image upload with preview)
+
+## Frontend Pages
+
+| Route | Page | Auth | Backend endpoint |
+|-------|------|------|------------------|
+| `/` | Home | public | `/songs/` |
+| `/feed` | Discover | public | `/feed/` |
+| `/users/:username` | User Profile | public | `/users/:username/`, `/users/:username/songs/` |
+| `/login` | Login | public | `/auth/login/` |
+| `/register` | Register | public | `/auth/register/` |
+| `/upload` | Upload | **protected** | `POST /songs/` |
+| `/profile` | My Profile | **protected** | `/users/me/` |
+
+The feed and user profiles are fully public — no login required.
+Song cards link to the uploader's profile.

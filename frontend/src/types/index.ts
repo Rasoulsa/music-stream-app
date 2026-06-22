@@ -2,7 +2,8 @@
  * Shared TypeScript types for the application.
  */
 
-// Response from GET /api/health/
+// ─── Response from GET /api/health/ ──────────────────────────────────────
+
 export interface HealthResponse {
   status: string;
   service: string;
@@ -51,7 +52,8 @@ export interface RegisterResponse {
   email: string;
 }
 
-// A single Song from the backend
+//  ─── A single Song from the backend ──────────────────────────────────────
+
 export interface Song {
   id: number;
   title: string;
@@ -67,10 +69,21 @@ export interface Song {
   updated_at: string;
 }
 
-// DRF paginated list response
+//  ─── DRF paginated list response ──────────────────────────────────────
 export interface PaginatedResponse<T> {
   count: number;
   next: string | null;
   previous: string | null;
   results: T[];
+}
+
+// ─── Public Profile (no email) ───────────────────────────────────────────────
+
+export interface PublicProfile {
+  username: string;
+  display_name: string;
+  bio: string;
+  avatar: string | null;
+  public_song_count: number;
+  created_at: string;
 }
