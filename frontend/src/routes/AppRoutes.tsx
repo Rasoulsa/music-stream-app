@@ -2,18 +2,22 @@
  * Application routes.
  *
  * Structure:
- *   <Layout>                      ← shared shell (navbar + player)
- *     /            HomePage       (public)
- *     /login       LoginPage      (public)
- *     /register    RegisterPage   (public)
- *     <ProtectedRoute>            ← guard
- *       /upload    UploadPage     (auth)
- *       /profile   ProfilePage    (auth)
- *     *            NotFoundPage
+ *   <Layout>
+ *     /                  HomePage        (public)
+ *     /feed              FeedPage        (public)
+ *     /users/:username   UserProfilePage (public)
+ *     /login             LoginPage       (public)
+ *     /register          RegisterPage    (public)
+ *     <ProtectedRoute>
+ *       /upload          UploadPage      (auth required)
+ *       /profile         ProfilePage     (auth required)
+ *     *                  NotFoundPage
  */
 
 import { Routes, Route } from 'react-router-dom';
 import { HomePage } from '../pages/HomePage';
+import FeedPage from '../pages/FeedPage';
+import UserProfilePage from '../pages/UserProfilePage';
 import Layout from '../components/Layout';
 import ProtectedRoute from '../components/ProtectedRoute';
 import LoginPage from '../pages/LoginPage';
@@ -28,6 +32,8 @@ export default function AppRoutes() {
       <Route element={<Layout />}>
         {/* Public */}
         <Route path='/' element={<HomePage />} />
+        <Route path='/feed' element={<FeedPage />} />
+        <Route path='/users/:username' element={<UserProfilePage />} />
         <Route path='/login' element={<LoginPage />} />
         <Route path='/register' element={<RegisterPage />} />
 

@@ -767,3 +767,45 @@ inline editing of display name, email, bio, and avatar.
 - Audio playback failed with `ERR_SSL_PROTOCOL_ERROR` — MinIO dev URLs
   were generated as `https://localhost:9000`. Fixed by adding
   `AWS_S3_URL_PROTOCOL=http:` to `.env.dev` / `.env.example`.
+
+## Day 26 — Public Feed Page (2026-06-22)
+
+### Goal
+Public discovery feed of all public songs with search + ordering,
+visible to everyone (no auth required).
+
+### What I built
+- `getFeed()` in api/songs.ts — hits the dedicated /feed/ endpoint
+  (backend caches the default unfiltered view in Redis)
+- FeedPage — search box (350ms debounce), ordering dropdown (6 options),
+  responsive 1/2/3-col SongCard grid, loading/empty/error states
+- "Clear search" shortcut when empty results
+- Navbar "Discover" link, /feed public route
+
+### Key decision
+SongCard previously required isActive+onPlay. Made both optional (isActive
+defaults to false, onPlay is a no-op if absent) so the card works in any
+context — no duplicate component needed.
+
+---
+
+## Day 27 — Public User Profiles (2026-06-22)
+
+### Goal
+Visit any user at /users/:username to see their public profile + songs.
+
+### What I built
+- PublicProfile type (matches PublicProfileSerializer — public_song_count,
+  no email)
+- api/users.ts — getPublicProfile + getUserPublicSongs (real endpoints
+  confirmed from urls.py)
+- UserProfilePage — avatar/bio/join-date/song-count header + public song
+  grid, Promise.all parallel fetch, cleanup flag (no setState after
+  unmount), loading + 404 states
+- SongCard owner name is now a Link to /users/:username (stopPropagation
+  so it doesn't trigger play)
+- /users/:username public route
+
+### No backend changes
+Backend already had PublicProfileView + UserPublicSongsView — endpoints
+matched exactly.

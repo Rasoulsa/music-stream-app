@@ -27,6 +27,16 @@ export default function Navbar() {
         >
           Home
         </NavLink>
+        <NavLink
+          to="/feed"
+          className={({ isActive }) =>
+            isActive
+              ? 'text-[var(--brand)] font-semibold'
+              : 'text-[var(--text-muted)] hover:text-[var(--text)] transition-colors'
+          }
+        >
+          Discover
+        </NavLink>
 
         {!isLoading && (
           isAuthenticated ? (

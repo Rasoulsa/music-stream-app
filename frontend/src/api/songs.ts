@@ -5,15 +5,27 @@
 import { apiClient } from './client';
 import type { PaginatedResponse, Song } from '../types';
 
-interface GetSongsParams {
+export interface GetSongsParams {
   search?: string;
   ordering?: string;
 }
 
+// Authenticated user's own songs (home page).
 export async function getSongs(
   params: GetSongsParams = {},
 ): Promise<PaginatedResponse<Song>> {
   const response = await apiClient.get<PaginatedResponse<Song>>('/songs/', {
+    params,
+  });
+  return response.data;
+}
+
+// Public feed — all public songs. No auth required.
+// Uses the dedicated /feed/ endpoint (cached on backend for default view).
+export async function getFeed(
+  params: GetSongsParams = {},
+): Promise<PaginatedResponse<Song>> {
+  const response = await apiClient.get<PaginatedResponse<Song>>('/feed/', {
     params,
   });
   return response.data;
