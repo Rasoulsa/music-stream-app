@@ -70,6 +70,10 @@ dev-logs-backend:	## Follow logs for backend only (dev)
 dev-logs-celery:	## Follow logs for celery worker only (dev)
 	$(DEV) logs -f celery_worker
 
+.PHONY: dev-logs-frontend
+dev-logs-frontend:	## Follow logs for frontend only (dev)      ← NEW
+	$(DEV) logs -f frontend
+
 .PHONY: dev-shell
 dev-shell:		## Open bash shell inside backend container (dev)
 	$(DEV) exec backend /bin/bash
@@ -77,6 +81,10 @@ dev-shell:		## Open bash shell inside backend container (dev)
 .PHONY: dev-shell-db
 dev-shell-db:		## Open psql shell inside db container (dev)
 	$(DEV) exec db psql -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+
+.PHONY: dev-shell-frontend
+dev-shell-frontend:	## Open shell inside frontend container (dev)  ← NEW
+	$(DEV) exec frontend /bin/sh
 
 .PHONY: dev-test
 dev-test:		## Run pytest in backend container (dev)
@@ -136,6 +144,10 @@ prod-logs-celery:	## Follow logs for celery worker only (prod)
 prod-logs-nginx:	## Follow logs for nginx only (prod)
 	$(PROD) logs -f nginx
 
+.PHONY: prod-logs-frontend
+prod-logs-frontend:	## Follow logs for frontend only (prod)      ← NEW
+	$(PROD) logs -f frontend
+
 .PHONY: prod-ps
 prod-ps:		## Show status of all prod services
 	$(PROD) ps
@@ -144,9 +156,25 @@ prod-ps:		## Show status of all prod services
 prod-shell:		## Open bash shell inside backend container (prod)
 	$(PROD) exec backend /bin/bash
 
+.PHONY: prod-shell-frontend
+prod-shell-frontend:	## Open shell inside frontend container (prod) ← NEW
+	$(PROD) exec frontend /bin/sh
+
+.PHONY: prod-shell-nginx
+prod-shell-nginx:	## Open shell inside nginx container (prod)    ← NEW
+	$(PROD) exec nginx /bin/sh
+
 .PHONY: prod-migrate
 prod-migrate:		## Run Django migrations (prod)
 	$(PROD) exec backend /app/.venv/bin/python manage.py migrate
+
+.PHONY: prod-createsuperuser
+prod-createsuperuser:	## Create Django superuser (prod)              ← NEW
+	$(PROD) exec backend /app/.venv/bin/python manage.py createsuperuser
+
+.PHONY: prod-collectstatic
+prod-collectstatic:	## Run collectstatic manually (prod)           ← NEW
+	$(PROD) exec backend /app/.venv/bin/python manage.py collectstatic --noinput
 
 # -----------------------------------------------------------------------------
 # Cleanup
