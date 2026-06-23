@@ -86,6 +86,7 @@ services:
     depends_on:
       - backend
       - frontend            # both upstreams must exist before nginx starts
+      - minio
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost/api/health/"]
