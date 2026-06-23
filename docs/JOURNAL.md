@@ -850,3 +850,36 @@ pytest suite.
 Frontend tests simulate a USER (click/type/see text) rather than hitting
 an HTTP endpoint, but the discipline is the same: mock the boundary
 (axios), test observable behavior, keep tests isolated.
+
+## Day 29 — Dockerize Frontend (2026-06-23)
+
+### Goal
+Produce a small, production-ready container image for the React frontend
+and add it to docker-compose.
+
+### Approach: multi-stage build
+- Stage 1 (node:22-alpine): npm ci → npm run build → /dist
+- Stage 2 (nginx:alpine): copy /dist, serve static files
+- Result: ~50MB image instead of ~1GB (no node runtime or deps in prod)
+
+### Two key gotchas learned
+1. **Vite env vars are build-time, not runtime.** import.meta.env.VITE_*
+   is replaced with literal strings during `npm run build`. You can't
+   change the API URL by passing env to the running container — must use
+   --build-arg. (For cloud, will switch to runtime config.js injection.)
+
+2. **SPA routing + nginx.** A hard refresh on /users/faraz makes nginx
+   look for that file → 404. Fixed with try_files ... /index.html so
+   nginx always serves index.html and React Router handles the route.
+
+### Files
+- frontend/Dockerfile (multi-stage)
+- frontend/nginx.conf (SPA fallback + immutable asset caching)
+- frontend/.dockerignore (slim context, exclude node_modules/.env)
+- docker-compose.yml: frontend service, build arg, port 3000:80
+
+### Verified
+- Image ~50MB
+- App loads, hard refresh on deep routes works
+- API calls hit configured base URL
+- Hashed /assets cached immutable, index.html no-cache
