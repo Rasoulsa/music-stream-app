@@ -1,35 +1,52 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* ── Design tokens ─────────────────────────────────────── */
 :root {
-  --brand:        #1db954;
-  --brand-dark:   #17a349;
-  --surface:      #121212;
-  --surface-2:    #1e1e1e;
-  --surface-3:    #2a2a2a;
-  --border:       #2f2f2f;
-  --text:         #e8e8e8;
-  --text-muted:   #a0a0a0;
-  --danger:       #e53935;
-  --radius:       0.5rem;
-  --player-h:     80px;
+  --brand: #1db954;
+  --brand-dark: #17a349;
+  --surface: #121212;
+  --surface-2: #1e1e1e;
+  --surface-3: #2a2a2a;
+  --border: #2f2f2f;
+  --text: #e8e8e8;
+  --text-muted: #a0a0a0;
+  --danger: #e53935;
+  --radius: 0.5rem;
+  --player-h: 80px;
 }
 
 /* ── Reset / base ───────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-html { font-size: 16px; }
+html {
+  font-size: 16px;
+}
 
 body {
-  background:  var(--surface);
-  color:       var(--text);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  min-height:  100vh;
+  background: var(--surface);
+  color: var(--text);
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  min-height: 100vh;
   padding-bottom: var(--player-h);
 }
 
-a { color: var(--brand); text-decoration: none; }
-a:hover { text-decoration: underline; }
+a {
+  color: var(--brand);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
 
 button {
   cursor: pointer;
@@ -37,7 +54,8 @@ button {
   font-size: 0.875rem;
 }
 
-input, textarea {
+input,
+textarea {
   font-family: inherit;
   font-size: 0.9rem;
   background: var(--surface-3);
@@ -50,7 +68,8 @@ input, textarea {
   transition: border-color 0.15s;
 }
 
-input:focus, textarea:focus {
+input:focus,
+textarea:focus {
   border-color: var(--brand);
 }
 

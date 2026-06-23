@@ -71,9 +71,7 @@ export default function FeedPage() {
 
       {/* Loading */}
       {loading && (
-        <div className="text-center text-[var(--text-muted)] py-12">
-          Loading songs…
-        </div>
+        <div className="text-center text-[var(--text-muted)] py-12">Loading songs…</div>
       )}
 
       {/* Error */}

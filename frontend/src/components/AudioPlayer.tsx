@@ -5,7 +5,7 @@
  */
 
 import { useRef, useEffect, useState } from 'react';
-import { usePlayer } from '../context/PlayerContext';
+import { usePlayer } from '../hooks/usePlayer';
 
 function formatTime(seconds: number): string {
   if (!seconds || isNaN(seconds)) return '0:00';
@@ -15,14 +15,8 @@ function formatTime(seconds: number): string {
 }
 
 export function AudioPlayer() {
-  const {
-    currentSong,
-    isPlaying,
-    setIsPlaying,
-    togglePlay,
-    playNext,
-    playPrev,
-  } = usePlayer();
+  const { currentSong, isPlaying, setIsPlaying, togglePlay, playNext, playPrev } =
+    usePlayer();
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const [currentTime, setCurrentTime] = useState(0);

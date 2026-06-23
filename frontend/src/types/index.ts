@@ -2,6 +2,8 @@
  * Shared TypeScript types for the application.
  */
 
+export type { PlayerContextValue } from './player';
+
 // ─── Response from GET /api/health/ ──────────────────────────────────────
 
 export interface HealthResponse {

@@ -172,6 +172,21 @@ uv run pytest --cov --cov-report=html
 open htmlcov/index.html
 ```
 
+## Continuous Integration
+
+| Workflow | Triggers on | Jobs |
+|----------|-------------|------|
+| **Backend CI** (`ci.yml`) | push/PR to `main` | Lint & Format (ruff) → Tests (PostgreSQL + coverage) |
+| **Frontend CI** (`frontend-ci.yml`) | `frontend/**` changes | Lint & Format (eslint + prettier) → Tests & Build (vitest + vite) → Docker Build |
+
+Run frontend checks locally before pushing:
+
+```bash
+cd frontend
+npm ci && npm run lint && npm run format:check && npm run test && npm run build
+```
+
+
 ## 📦 Deployment Plan
 
 1. VPS deployment using Docker Compose

@@ -42,7 +42,9 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <span className="text-5xl">🎵</span>
           <h1 className="text-2xl font-bold mt-3">Welcome back</h1>
-          <p className="text-[var(--text-muted)] text-sm mt-1">Log in to your account</p>
+          <p className="text-[var(--text-muted)] text-sm mt-1">
+            Log in to your account
+          </p>
         </div>
 
         <form

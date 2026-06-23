@@ -72,9 +72,7 @@ function ProfileView({ user }: { user: User }) {
           )}
         </div>
         <div>
-          <p className="font-bold text-lg">
-            {user.display_name || user.username}
-          </p>
+          <p className="font-bold text-lg">{user.display_name || user.username}</p>
           <p className="text-[var(--text-muted)] text-sm">@{user.username}</p>
         </div>
       </div>
@@ -86,9 +84,7 @@ function ProfileView({ user }: { user: User }) {
         </div>
         <div className="bg-[var(--surface-3)] rounded-xl p-3">
           <p className="text-[var(--text-muted)] text-xs mb-1">Songs</p>
-          <p className="font-bold text-[var(--brand)]">
-            {user.song_count ?? 0}
-          </p>
+          <p className="font-bold text-[var(--brand)]">{user.song_count ?? 0}</p>
         </div>
         <div className="bg-[var(--surface-3)] rounded-xl col-span-2 p-3">
           <p className="text-[var(--text-muted)] text-xs mb-1">Bio</p>
@@ -167,12 +163,7 @@ function ProfileEditForm({
         </div>
         <label className="px-4 py-2 rounded-xl bg-[var(--surface-3)] hover:bg-[var(--surface-2)] text-sm font-medium cursor-pointer transition-colors">
           Change avatar
-          <input
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={handleAvatarChange}
-          />
+          <input type="file" accept="image/*" hidden onChange={handleAvatarChange} />
         </label>
       </div>
 

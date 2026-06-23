@@ -5,21 +5,11 @@
  * On mount, if a token exists, fetches /users/me/ to restore session.
  */
 
-import {
-  createContext,
-  useCallback,
-  useEffect,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { authApi } from '../api/auth';
 import { setAuthFailureHandler } from '../api/client';
 import { tokenStore } from '../utils/token';
-import type {
-  LoginCredentials,
-  RegisterCredentials,
-  User,
-} from '../types';
+import type { LoginCredentials, RegisterCredentials, User } from '../types';
 
 interface AuthContextValue {
   user: User | null;

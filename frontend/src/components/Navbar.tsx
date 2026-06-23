@@ -38,8 +38,8 @@ export default function Navbar() {
           Discover
         </NavLink>
 
-        {!isLoading && (
-          isAuthenticated ? (
+        {!isLoading &&
+          (isAuthenticated ? (
             <>
               <NavLink
                 to="/upload"
@@ -94,8 +94,7 @@ export default function Navbar() {
                 Register
               </Link>
             </>
-          )
-        )}
+          ))}
       </nav>
     </header>
   );

@@ -883,3 +883,30 @@ and add it to docker-compose.
 - App loads, hard refresh on deep routes works
 - API calls hit configured base URL
 - Hashed /assets cached immutable, index.html no-cache
+
+### Goal
+Automate frontend quality gates on every push/PR — completing Phase 3.
+
+### Pipeline (.github/workflows/frontend-ci.yml)
+Mirrors the backend ci.yml. Three gated jobs:
+1. lint   — eslint + prettier --check
+2. test   — vitest run + vite build (needs: lint)
+3. docker — builds the Day 29 multi-stage image (needs: test)
+
+### Design decisions
+- **Mirrored backend style**: same lint→test gating so both pipelines read
+  the same way (good for the portfolio).
+- **Path filters (frontend/**)**: independent from backend CI — frontend
+  changes don't trigger backend runs and vice versa.
+- **Caching**: npm (setup-node) + Docker layers (type=gha).
+- **concurrency + cancel-in-progress**: stale runs cancelled on new push.
+
+### Gotcha
+prettier --check is strict — had to run `npm run format` first since some
+files weren't formatted. CI mirrors local exactly: if the 5-command local
+run is green, CI is green.
+
+### Phase 3 complete ✅ (Days 20–30)
+foundation → auth → routing → player → upload → profile → feed →
+user pages → tests → docker → CI.
+Full React/TS frontend: tested, containerized, continuously integrated.

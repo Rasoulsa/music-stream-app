@@ -1,16 +1,11 @@
 import { useState, useRef, type FormEvent, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUploadSong } from '../hooks/useUploadSong';
-import {
-  validateAudio,
-  validateImage,
-  formatBytes,
-} from '../utils/fileValidation';
+import { validateAudio, validateImage, formatBytes } from '../utils/fileValidation';
 
 export default function UploadPage() {
   const navigate = useNavigate();
-  const { upload, isUploading, progress, fieldErrors, generalError } =
-    useUploadSong();
+  const { upload, isUploading, progress, fieldErrors, generalError } = useUploadSong();
 
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
@@ -143,9 +138,7 @@ export default function UploadPage() {
             required
           />
           {fieldErrors.title && (
-            <p className="text-xs text-[var(--danger)] mt-1">
-              {fieldErrors.title}
-            </p>
+            <p className="text-xs text-[var(--danger)] mt-1">{fieldErrors.title}</p>
           )}
         </label>
 

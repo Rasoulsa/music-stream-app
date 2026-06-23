@@ -67,19 +67,14 @@ export default function UserProfilePage() {
       <div className="max-w-4xl mx-auto px-4 py-8 text-center">
         <p className="text-4xl mb-3">🔍</p>
         <p className="text-[var(--text-muted)] mb-4">User not found.</p>
-        <Link
-          to="/feed"
-          className="text-[var(--brand)] hover:underline text-sm"
-        >
+        <Link to="/feed" className="text-[var(--brand)] hover:underline text-sm">
           ← Back to feed
         </Link>
       </div>
     );
   }
 
-  const initials = (profile.display_name || profile.username)
-    .slice(0, 2)
-    .toUpperCase();
+  const initials = (profile.display_name || profile.username).slice(0, 2).toUpperCase();
 
   /* ── Profile ── */
   return (
@@ -106,9 +101,7 @@ export default function UserProfilePage() {
           <h1 className="text-2xl font-bold truncate text-[var(--text)]">
             {profile.display_name || profile.username}
           </h1>
-          <p className="text-[var(--text-muted)] text-sm">
-            @{profile.username}
-          </p>
+          <p className="text-[var(--text-muted)] text-sm">@{profile.username}</p>
           {profile.bio && (
             <p className="text-sm mt-2 text-[var(--text)]">{profile.bio}</p>
           )}
@@ -129,9 +122,7 @@ export default function UserProfilePage() {
       </div>
 
       {/* Songs section */}
-      <h2 className="text-lg font-semibold text-[var(--text)] mb-4">
-        Public songs
-      </h2>
+      <h2 className="text-lg font-semibold text-[var(--text)] mb-4">Public songs</h2>
 
       {songs.length === 0 ? (
         <div className="text-center text-[var(--text-muted)] py-12">

@@ -45,9 +45,7 @@ describe('FeedPage', () => {
     renderFeed();
 
     // waitFor covers the 350ms debounce + async resolve.
-    await waitFor(() =>
-      expect(screen.getByText('Public Track')).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText('Public Track')).toBeInTheDocument());
   });
 
   it('shows the empty state when there are no songs', async () => {

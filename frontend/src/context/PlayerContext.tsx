@@ -3,24 +3,15 @@
  *
  * Holds the current song + the full queue so the player
  * persists across route navigation and supports next/prev.
+ *
+ * Context object + usePlayer hook live in src/hooks/usePlayer.ts
+ * so this file only exports a component (react-refresh rule).
  */
 
-import { createContext, useContext, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { Song } from '../types';
-
-interface PlayerContextValue {
-  currentSong: Song | null;
-  queue: Song[];
-  isPlaying: boolean;
-  playSong: (song: Song, queue?: Song[]) => void;
-  togglePlay: () => void;
-  playNext: () => void;
-  playPrev: () => void;
-  setIsPlaying: (value: boolean) => void;
-}
-
-export const PlayerContext = createContext<PlayerContextValue | undefined>(undefined);
+import { PlayerContext } from '../hooks/usePlayer';
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
@@ -75,13 +66,4 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       {children}
     </PlayerContext.Provider>
   );
-}
-
-// eslint-disable-next-line react-refresh/only-export-components
-export function usePlayer() {
-  const ctx = useContext(PlayerContext);
-  if (!ctx) {
-    throw new Error('usePlayer must be used within a PlayerProvider');
-  }
-  return ctx;
 }
