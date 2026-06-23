@@ -4,7 +4,7 @@
 
 import type { Song } from '../types';
 import { SongCard } from './SongCard';
-import { usePlayer } from '../context/PlayerContext';
+import { usePlayer } from '../hooks/usePlayer';
 
 interface SongListProps {
   songs: Song[];

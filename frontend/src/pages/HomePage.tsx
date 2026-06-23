@@ -10,14 +10,10 @@ export function HomePage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 pb-28">
-      <h1 className="text-2xl font-bold text-[var(--text)] mb-6">
-        Your Library
-      </h1>
+      <h1 className="text-2xl font-bold text-[var(--text)] mb-6">Your Library</h1>
 
       {isLoading && (
-        <div className="text-center text-[var(--text-muted)] py-12">
-          Loading songs…
-        </div>
+        <div className="text-center text-[var(--text-muted)] py-12">Loading songs…</div>
       )}
 
       {error && (
@@ -39,9 +35,7 @@ export function HomePage() {
         </div>
       )}
 
-      {!isLoading && !error && songs.length > 0 && (
-        <SongList songs={songs} />
-      )}
+      {!isLoading && !error && songs.length > 0 && <SongList songs={songs} />}
     </div>
   );
 }

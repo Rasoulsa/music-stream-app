@@ -19,10 +19,7 @@ export const authApi = {
   },
 
   register: async (creds: RegisterCredentials): Promise<RegisterResponse> => {
-    const { data } = await apiClient.post<RegisterResponse>(
-      '/auth/register/',
-      creds,
-    );
+    const { data } = await apiClient.post<RegisterResponse>('/auth/register/', creds);
     return data;
   },
 

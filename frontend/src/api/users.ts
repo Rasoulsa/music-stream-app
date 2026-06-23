@@ -9,9 +9,7 @@
 import { apiClient } from './client';
 import type { PaginatedResponse, PublicProfile, Song } from '../types';
 
-export async function getPublicProfile(
-  username: string,
-): Promise<PublicProfile> {
+export async function getPublicProfile(username: string): Promise<PublicProfile> {
   const { data } = await apiClient.get<PublicProfile>(`/users/${username}/`);
   return data;
 }

@@ -31,20 +31,20 @@ export default function AppRoutes() {
     <Routes>
       <Route element={<Layout />}>
         {/* Public */}
-        <Route path='/' element={<HomePage />} />
-        <Route path='/feed' element={<FeedPage />} />
-        <Route path='/users/:username' element={<UserProfilePage />} />
-        <Route path='/login' element={<LoginPage />} />
-        <Route path='/register' element={<RegisterPage />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/feed" element={<FeedPage />} />
+        <Route path="/users/:username" element={<UserProfilePage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
         {/* Protected */}
         <Route element={<ProtectedRoute />}>
-          <Route path='/upload' element={<UploadPage />} />
-          <Route path='/profile' element={<ProfilePage />} />
+          <Route path="/upload" element={<UploadPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Route>
 
         {/* Fallback */}
-        <Route path='*' element={<NotFoundPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
   );

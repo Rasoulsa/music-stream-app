@@ -20,7 +20,7 @@ export default function RegisterPage() {
     try {
       const res = await axios.post(
         `${import.meta.env.VITE_API_BASE_URL}/auth/register/`,
-        { username, email, password }
+        { username, email, password },
       );
       if (res.status === 201) {
         await login({ username, password });
@@ -45,7 +45,9 @@ export default function RegisterPage() {
         <div className="text-center mb-8">
           <span className="text-5xl">🎵</span>
           <h1 className="text-2xl font-bold mt-3">Create account</h1>
-          <p className="text-[var(--text-muted)] text-sm mt-1">Start sharing your music</p>
+          <p className="text-[var(--text-muted)] text-sm mt-1">
+            Start sharing your music
+          </p>
         </div>
 
         <form
