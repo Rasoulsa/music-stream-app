@@ -95,3 +95,16 @@ npm run test:watch    # watch mode (re-run on change)
 npm run test:ui       # browser UI
 npm run test:coverage # coverage report
 ```
+
+## Frontend Docker
+
+The frontend ships as a multi-stage Docker image: built with Node,
+served by nginx.
+
+### Build
+
+```bash
+cd frontend
+docker build -t music-frontend \
+  --build-arg VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1 .
+```

@@ -59,6 +59,12 @@ services:
     build:
       context: ./backend
     container_name: music-backend
+    command: >
+      /app/.venv/bin/python manage.py runserver 0.0.0.0:8000
+    env_file:
+      - .env.dev
+    ports:
+      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -66,6 +72,19 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # At build time, point to the backend.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://127.0.0.1:8000/api/v1}
+    container_name: music-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
 
   celery_worker:
     build:
