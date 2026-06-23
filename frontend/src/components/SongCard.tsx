@@ -7,18 +7,13 @@
 
 import { Link } from 'react-router-dom';
 import type { Song } from '../types';
+import { formatDuration } from '../utils/format';
+
 
 interface SongCardProps {
   song: Song;
   isActive?: boolean;        // optional — defaults to false
   onPlay?: (song: Song) => void; // optional — no-op if absent
-}
-
-function formatDuration(seconds: number): string {
-  if (!seconds) return '';
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 export function SongCard({ song, isActive = false, onPlay }: SongCardProps) {

@@ -809,3 +809,44 @@ Visit any user at /users/:username to see their public profile + songs.
 ### No backend changes
 Backend already had PublicProfileView + UserPublicSongsView — endpoints
 matched exactly.
+
+## Day 28 — Frontend Tests (2026-06-23)
+
+### Goal
+Set up the frontend testing stack (Vitest + React Testing Library) and
+write the first tests, following the same philosophy as the backend
+pytest suite.
+
+### Backend ↔ Frontend test mapping
+| Backend (pytest + DRF) | Frontend (Vitest + RTL) |
+|------------------------|--------------------------|
+| pytest runner | Vitest runner |
+| APIClient | render() + screen queries |
+| mock S3/Redis | mock axios client |
+| assert status_code | expect(...).toBeInTheDocument() |
+| AAA pattern | AAA pattern (identical) |
+
+### What I built
+- Installed: vitest, @testing-library/react, user-event, jest-dom, jsdom
+- vitest.config.ts (jsdom env, globals, setup file)
+- src/test/setup.ts — afterEach cleanup + clearAllMocks (test isolation,
+  like conftest.py)
+- Test scripts in package.json
+
+### Tests (15 total)
+- utils/format.test.ts — formatDuration: m:ss, padding, zero, exact minute
+- api/songs.test.ts — getFeed hits /feed/ with correct params, parses
+  paginated payload (axios mocked)
+- components/SongCard.test.tsx — title/artist/duration render, owner links
+  to /users/:username, onPlay fires on click, no-crash in read-only mode
+- pages/FeedPage.test.tsx — loading→songs, empty state, error state (api
+  mocked, waitFor for the 350ms debounce)
+
+### Refactor
+- Extracted formatDuration from SongCard.tsx → utils/format.ts so the
+  component and the test share one source of truth
+
+### Key learning
+Frontend tests simulate a USER (click/type/see text) rather than hitting
+an HTTP endpoint, but the discipline is the same: mock the boundary
+(axios), test observable behavior, keep tests isolated.

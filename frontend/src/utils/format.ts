@@ -1,13 +1,11 @@
 /**
- * Formatting helpers.
+ * Formatting helpers shared across components.
  */
 
-/** Convert seconds (e.g. 225) to "3:45". */
-export function formatDuration(totalSeconds: number): string {
-  if (!totalSeconds || totalSeconds < 0) {
-    return '0:00';
-  }
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+/** Format a duration in seconds into "m:ss" (e.g. 125 → "2:05"). */
+export function formatDuration(seconds: number): string {
+  if (!seconds) return '';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
 }
