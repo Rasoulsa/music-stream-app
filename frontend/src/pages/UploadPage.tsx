@@ -55,9 +55,19 @@ export default function UploadPage() {
       return;
     }
 
+    if (!title.trim()) {
+      setLocalError('Title is required.');
+      return;
+    }
+
+    if (!artist.trim()) {
+      setLocalError('Artist name is required.');
+      return;
+    }
+
     const song = await upload({
       title: title.trim(),
-      artist: artist.trim() || undefined,
+      artist: artist.trim(),
       album: album.trim() || undefined,
       audio_file: audioFile,
       cover_image: coverImage,
@@ -133,9 +143,11 @@ export default function UploadPage() {
           Title <span className="text-[var(--brand)]">*</span>
           <input
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              if (localError === 'Title is required.') setLocalError(null);
+            }}
             placeholder="Song title"
-            required
           />
           {fieldErrors.title && (
             <p className="text-xs text-[var(--danger)] mt-1">{fieldErrors.title}</p>
@@ -145,12 +157,18 @@ export default function UploadPage() {
         {/* Artist + Album */}
         <div className="grid grid-cols-2 gap-4">
           <label>
-            Artist
+            Artist <span className="text-[var(--brand)]">*</span>
             <input
               value={artist}
-              onChange={(e) => setArtist(e.target.value)}
+              onChange={(e) => {
+                setArtist(e.target.value);
+                if (localError === 'Artist name is required.') setLocalError(null);
+              }}
               placeholder="Artist name"
             />
+            {fieldErrors.artist && (
+              <p className="text-xs text-[var(--danger)] mt-1">{fieldErrors.artist}</p>
+            )}
           </label>
           <label>
             Album

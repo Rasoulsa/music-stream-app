@@ -38,7 +38,7 @@ class SongSerializer(serializers.ModelSerializer):
 
     owner = serializers.ReadOnlyField(source="owner.username")
     title = serializers.CharField(allow_blank=True)
-    artist = serializers.CharField(allow_blank=True)
+    artist = serializers.CharField(required=True, allow_blank=False)
 
     class Meta:
         model = Song
