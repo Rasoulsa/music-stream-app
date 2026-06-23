@@ -1,3 +1,6 @@
+# Production overrides.
+# Run with: docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+
 services:
   db:
     env_file:
@@ -6,14 +9,14 @@ services:
 
   redis:
     restart: unless-stopped
-    # No ports — internal only, not reachable from host
+    # No ports — internal only
 
   minio:
     env_file:
       - ./.env.prod
     restart: unless-stopped
-    # No ports — Django reaches MinIO internally via http://minio:9000
-    # To access the MinIO console temporarily: add ports here and remove after
+    # No ports — Django reaches MinIO via http://minio:9000
+    # Temporarily expose console: add "9001:9001" here if needed
 
   createbuckets:
     env_file:
@@ -22,7 +25,7 @@ services:
   backend:
     build:
       context: ./backend
-      target: production        # prod stage = gunicorn, collectstatic
+      target: production
     env_file:
       - ./.env.prod
     environment:
@@ -37,7 +40,7 @@ services:
       --timeout 120
       "
     expose:
-      - "8000"                  # internal only — Nginx reaches it
+      - "8000"              # internal only — edge nginx reaches it
     volumes:
       - static_files:/app/staticfiles
       - media_files:/app/media
@@ -53,17 +56,36 @@ services:
       - media_files:/app/media
     restart: unless-stopped
 
+  # ── Frontend — React static build ──────────────────────────────
+  # Built once at image build time. Served by the internal nginx
+  # (frontend/nginx.conf). Edge nginx proxies / here.
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Same-origin: frontend and backend are both on :80 behind
+        # the edge nginx → /api/v1 with no host/port → zero CORS.
+        VITE_API_BASE_URL: /api/v1
+    expose:
+      - "80"                # internal only — edge nginx reaches it
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ── Edge reverse proxy ─────────────────────────────────────────
   nginx:
     image: nginx:1.27-alpine
     container_name: music-nginx
     ports:
-      - "80:80"
+      - "80:80"             # THE only public port in the whole stack
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - static_files:/app/staticfiles:ro
-      - media_files:/app/media:ro
+      - static_files:/app/staticfiles:ro   # serve /static/ directly
+      - media_files:/app/media:ro          # serve /media/ directly
     depends_on:
       - backend
+      - frontend            # both upstreams must exist before nginx starts
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost/api/health/"]

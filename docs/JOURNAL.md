@@ -910,3 +910,50 @@ run is green, CI is green.
 foundation → auth → routing → player → upload → profile → feed →
 user pages → tests → docker → CI.
 Full React/TS frontend: tested, containerized, continuously integrated.
+
+
+### Phase 4 begins: Integration & Production
+
+### Goal
+Complete the single-entry-point production stack. The base/dev/prod
+compose architecture, all Dockerfiles, and nginx configs already existed.
+Day 31 closed three specific gaps preventing the full stack from running.
+
+### Architecture (why two nginx, no backend nginx)
+
+root/nginx/nginx.conf    → edge proxy  (public :80, routing decisions)
+frontend/nginx.conf      → SPA server  (internal :80, static file serving)
+backend/                 → NO nginx    (gunicorn is the Python WSGI server;
+                                        edge nginx is the HTTP layer)
+
+The edge nginx is the only public-facing process. It routes:
+  /api, /admin           → backend:8000 (gunicorn)
+  /static, /media        → shared Docker volumes (direct disk, fast)
+  /                      → frontend:80 (nginx serving React build)
+
+### Gaps closed
+1. nginx/nginx.conf only had `upstream django` routing everything to
+   gunicorn. Added `upstream frontend`; split location blocks so /api +
+   /admin go to backend and / goes to the React container.
+
+2. docker-compose.prod.yml had no `frontend` service. The nginx upstream
+   `frontend:80` had no container to resolve to — would have crashed.
+   Added frontend service with VITE_API_BASE_URL=/api/v1.
+
+3. Compose MERGES `ports` lists (does not replace). Base had ports:3000:80
+   and 8000:8000 which leaked into prod. Moved host ports to dev override
+   only. Prod stack is now fully internal behind the edge nginx.
+
+### Key insight
+VITE_API_BASE_URL=/api/v1 (no host/port) is what eliminates CORS in prod.
+Both frontend and backend are served from http://localhost — one origin.
+The edge nginx is what makes this possible.
+
+### Run commands
+  Prod: docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+  Dev:  docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+  Shortcut: make prod / make dev
+
+### Magic moment
+Register + login in the browser at http://localhost — zero CORS errors.
+Frontend + backend share one origin behind the edge nginx. 🎯
