@@ -76,3 +76,11 @@ docker compose --env-file .env.prod \
 
 # 4. Verify everything still works
 ./scripts/smoke-prod.sh
+```
+
+## MinIO security (production)
+
+- Port 9000 (S3 API): internal only, never published to host.
+  The frontend reaches media exclusively through nginx at `/music-media/`.
+- Port 9001 (admin console): intentionally not exposed in production.
+  Access it temporarily via a docker network port-forward when needed.

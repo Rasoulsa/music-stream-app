@@ -27,6 +27,8 @@
 #   make secrets         Generate strong secrets for .env.prod
 #   make check-env       Validate .env.prod before deploying
 #
+#   make smoke-prod      Run end-to-end smoke tests against prod stack
+#   make prod-restart    Restart prod stack safely without deleting volumes
 #   make clean           Stop dev stack + wipe ALL volumes (fresh start)
 #   make clean-prod      Stop prod stack + wipe ALL volumes
 #   make help            Show this help message
@@ -207,8 +209,15 @@ clean:			## Stop dev stack and wipe ALL volumes (full fresh start)
 	$(DEV) down -v --remove-orphans
 
 .PHONY: clean-prod
-clean-prod:		## Stop prod stack and wipe ALL volumes
-	$(PROD) down -v --remove-orphans
+clean-prod:		## DANGER: Stop prod stack and DELETE prod database/media volumes
+	@echo "⚠️  WARNING: This will DELETE production database/media volumes."
+	@echo "⚠️  Users, songs, uploaded files, and MinIO data may be removed."
+	@read -p "Type 'delete-prod-data' to continue: " confirm; \
+	if [ "$$confirm" = "delete-prod-data" ]; then \
+		$(PROD) down -v --remove-orphans; \
+	else \
+		echo "Aborted."; \
+	fi
 
 # -----------------------------------------------------------------------------
 # Help — auto-generated from ## comments above
@@ -264,3 +273,12 @@ test-backend-cov:	## Run backend pytest with coverage locally against disposable
 	POSTGRES_USER=musicuser \
 	POSTGRES_PASSWORD=musicuser123 \
 	uv run pytest -v --ds=config.settings.ci --cov-report=term-missing --create-db
+
+.PHONY: prod-restart
+prod-restart:		## Restart prod stack safely without deleting volumes
+	$(PROD) down
+	$(PROD) up --build -d --remove-orphans
+
+.PHONY: smoke-prod
+smoke-prod:		## Run end-to-end smoke test against running prod stack
+	@./scripts/smoke-prod.sh
