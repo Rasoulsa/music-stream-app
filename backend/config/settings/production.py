@@ -9,8 +9,6 @@ Security model:
     (false for local Docker testing, true for real production with TLS)
 """
 
-import sys
-
 from .base import *  # noqa: F401,F403
 from .base import env  # noqa: F401
 
@@ -18,24 +16,19 @@ from .base import env  # noqa: F401
 DEBUG = False
 
 # ── Fail-loud guard ─────────────────────────────────────────────────────
-# Refuse to boot if SECRET_KEY is a placeholder, a known dev key,
-# or too short to be secure. This catches misconfigurations before
-# they silently run in production.
-#
-# All known placeholder/dev values across all env templates:
 _INSECURE_KEYS = {
     "",
-    "unsafe-dev-secret-key",  # old base.py default
-    "CHANGE_ME_min_50_chars",  # .env.prod.example
-    "dev-local-insecure-key-do-not-use-in-prod",  # .env.example
-    "dev-docker-insecure-key-not-for-production",  # .env.dev.example
-    "docker-local-test-key-change-me-not-for-real-prod",  # old .env.docker
+    "unsafe-dev-secret-key",
+    "CHANGE_ME_min_50_chars",
+    "dev-local-insecure-key-do-not-use-in-prod",
+    "dev-docker-insecure-key-not-for-production",
+    "docker-local-test-key-change-me-not-for-real-prod",
 }
 
-_secret = SECRET_KEY  # noqa: F405 — imported via base.*
+_secret = SECRET_KEY  # noqa: F405
 
 if _secret in _INSECURE_KEYS:
-    sys.exit(
+    raise ValueError(
         "\n"
         "FATAL: DJANGO_SECRET_KEY is a known placeholder or dev key.\n"
         "Run:   ./scripts/generate-secrets.sh\n"
@@ -43,47 +36,37 @@ if _secret in _INSECURE_KEYS:
     )
 
 if len(_secret) < 50:
-    sys.exit(
+    raise ValueError(
         f"\n"
         f"FATAL: DJANGO_SECRET_KEY is too short ({len(_secret)} chars, minimum 50).\n"
         f"Run:   ./scripts/generate-secrets.sh\n"
         f"Then:  paste the generated DJANGO_SECRET_KEY into .env.prod\n"
     )
 
-# Also catch keys that contain obvious dev/placeholder substrings
 _INSECURE_SUBSTRINGS = ("insecure", "change_me", "changeme", "change-me", "placeholder")
 if any(s in _secret.lower() for s in _INSECURE_SUBSTRINGS):
-    sys.exit(
+    raise ValueError(
         "\n"
         "FATAL: DJANGO_SECRET_KEY contains a suspicious substring.\n"
         "Run:   ./scripts/generate-secrets.sh\n"
     )
 
 # ── Allowed hosts ────────────────────────────────────────────────────────
-ALLOWED_HOSTS = env.list(  # noqa: F405
-    "DJANGO_ALLOWED_HOSTS",
-    default=[],
-)
+ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[])  # noqa: F405
 
 if not ALLOWED_HOSTS:
-    sys.exit(
+    raise ValueError(
         "\n"
         "FATAL: DJANGO_ALLOWED_HOSTS is empty in production.\n"
         "Set it in .env.prod, e.g.: DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1\n"
     )
 
 if "*" in ALLOWED_HOSTS:
-    sys.exit(
+    raise ValueError(
         "\n"
         "FATAL: DJANGO_ALLOWED_HOSTS contains '*' — not safe in production.\n"
         "Set explicit hostnames in .env.prod.\n"
     )
-
-# ── CSRF trusted origins ─────────────────────────────────────────────────
-CSRF_TRUSTED_ORIGINS = env.list(  # noqa: F405
-    "CSRF_TRUSTED_ORIGINS",
-    default=[],
-)
 
 # ── Database (PostgreSQL) ────────────────────────────────────────────────
 DATABASES = {

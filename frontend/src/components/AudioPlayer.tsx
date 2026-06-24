@@ -6,6 +6,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { usePlayer } from '../hooks/usePlayer';
+import type { Song } from '../types';
 
 function formatTime(seconds: number): string {
   if (!seconds || isNaN(seconds)) return '0:00';
@@ -14,23 +15,28 @@ function formatTime(seconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-function resolveAudioSrc(song: any): string {
-  const raw =
-    song?.audio_file ||
-    song?.audio_url ||
-    song?.file ||
-    '';
+function resolveAudioSrc(song: Song): string {
+  // audio_file comes from the API as a full absolute URL:
+  // "http://localhost/music-media/songs/audio/file.mp3"
+  // Using new URL() ensures spaces/special chars are percent-encoded automatically.
+  // e.g. "Evanescence - Rapture.mp3" → "Evanescence%20-%20Rapture.mp3"
+  const raw = song.audio_file ?? '';
 
   if (!raw) return '';
 
-  // Already absolute or root-relative
-  if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
-    return raw;
-  }
+  const url =
+    raw.startsWith('http://') ||
+    raw.startsWith('https://') ||
+    raw.startsWith('/')
+      ? new URL(raw, window.location.origin)
+      : new URL(`/music-media/${raw}`, window.location.origin);
 
-  // If API returns only object key:
-  // songs/audio/file.mp3 -> /music-media/songs/audio/file.mp3
-  return `/music-media/${raw}`;
+  // Cache-bust: forces Chrome to re-fetch instead of reusing a stale
+  // broken response that was cached before the nginx fix.
+  const version = song.updated_at ?? String(song.id);
+  url.searchParams.set('v', version);
+
+  return url.toString();
 }
 
 export function AudioPlayer() {

@@ -19,6 +19,11 @@
 #   make prod-ps         Show prod service status
 #   make prod-shell      Open bash shell in backend container (prod)
 #
+#   make test-db-up      Start disposable local PostgreSQL test DB
+#   make test-backend    Run backend pytest locally
+#   make test-backend-cov Run backend pytest locally with coverage
+#   make test-db-down    Stop disposable local PostgreSQL test DB
+#
 #   make secrets         Generate strong secrets for .env.prod
 #   make check-env       Validate .env.prod before deploying
 #
@@ -216,3 +221,46 @@ help:			## Show all available make commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36mmake %-26s\033[0m %s\n", $$1, $$2}'
 	@echo ""
+
+# -----------------------------------------------------------------------------
+# Local backend tests
+# -----------------------------------------------------------------------------
+.PHONY: test-db-up
+test-db-up:		## Start disposable local PostgreSQL test DB on localhost:5433
+	docker rm -f music-test-db 2>/dev/null || true
+	docker run -d \
+		--name music-test-db \
+		-e POSTGRES_DB=musicdb \
+		-e POSTGRES_USER=musicuser \
+		-e POSTGRES_PASSWORD=musicuser123 \
+		-p 5433:5432 \
+		postgres:16-alpine
+	@echo "Waiting for test database..."
+	@until docker exec music-test-db pg_isready -U musicuser -d musicdb >/dev/null 2>&1; do \
+		sleep 1; \
+	done
+	@echo "✅ Test database is ready on localhost:5433"
+
+.PHONY: test-db-down
+test-db-down:		## Stop and remove disposable local PostgreSQL test DB
+	docker rm -f music-test-db 2>/dev/null || true
+
+.PHONY: test-backend
+test-backend:		## Run backend pytest locally against disposable test DB
+	cd backend && \
+	POSTGRES_HOST=localhost \
+	POSTGRES_PORT=5433 \
+	POSTGRES_DB=musicdb \
+	POSTGRES_USER=musicuser \
+	POSTGRES_PASSWORD=musicuser123 \
+	uv run pytest -v --ds=config.settings.ci --no-cov --create-db
+
+.PHONY: test-backend-cov
+test-backend-cov:	## Run backend pytest with coverage locally against disposable test DB
+	cd backend && \
+	POSTGRES_HOST=localhost \
+	POSTGRES_PORT=5433 \
+	POSTGRES_DB=musicdb \
+	POSTGRES_USER=musicuser \
+	POSTGRES_PASSWORD=musicuser123 \
+	uv run pytest -v --ds=config.settings.ci --cov-report=term-missing --create-db

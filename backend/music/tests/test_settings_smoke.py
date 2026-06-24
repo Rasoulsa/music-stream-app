@@ -10,7 +10,10 @@ import pytest
 
 def test_production_settings_import(monkeypatch):
     """Production settings should import cleanly when env vars are present."""
-    monkeypatch.setenv("DJANGO_SECRET_KEY", "test-secret-key-not-the-default")
+    monkeypatch.setenv(
+        "DJANGO_SECRET_KEY",
+        "test-secret-key-for-ci-testing-only-not-used-in-prod-abcdef",
+    )
     monkeypatch.setenv("DJANGO_ALLOWED_HOSTS", "localhost,example.com")
     monkeypatch.setenv("POSTGRES_DB", "testdb")
     monkeypatch.setenv("POSTGRES_USER", "testuser")
