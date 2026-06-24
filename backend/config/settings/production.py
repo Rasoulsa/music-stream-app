@@ -1,31 +1,91 @@
 """
 Production settings.
+
+Security model:
+  - DEBUG is always False
+  - SECRET_KEY must be strong (≥50 chars, no known placeholder values)
+  - ALLOWED_HOSTS must be explicitly set
+  - HTTPS hardening controlled by DJANGO_SECURE_SSL env var
+    (false for local Docker testing, true for real production with TLS)
 """
+
+import sys
 
 from .base import *  # noqa: F401,F403
 from .base import env  # noqa: F401
 
+# ── Always off in production ────────────────────────────────────────────
 DEBUG = False
 
-# Refuse to start in production with the unsafe default key
-if SECRET_KEY == "unsafe-dev-secret-key":  # noqa: F405
-    raise ValueError("DJANGO_SECRET_KEY must be set to a secure value in production.")
+# ── Fail-loud guard ─────────────────────────────────────────────────────
+# Refuse to boot if SECRET_KEY is a placeholder, a known dev key,
+# or too short to be secure. This catches misconfigurations before
+# they silently run in production.
+#
+# All known placeholder/dev values across all env templates:
+_INSECURE_KEYS = {
+    "",
+    "unsafe-dev-secret-key",  # old base.py default
+    "CHANGE_ME_min_50_chars",  # .env.prod.example
+    "dev-local-insecure-key-do-not-use-in-prod",  # .env.example
+    "dev-docker-insecure-key-not-for-production",  # .env.dev.example
+    "docker-local-test-key-change-me-not-for-real-prod",  # old .env.docker
+}
 
-# Allowed hosts must come from the environment
+_secret = SECRET_KEY  # noqa: F405 — imported via base.*
+
+if _secret in _INSECURE_KEYS:
+    sys.exit(
+        "\n"
+        "FATAL: DJANGO_SECRET_KEY is a known placeholder or dev key.\n"
+        "Run:   ./scripts/generate-secrets.sh\n"
+        "Then:  paste the generated DJANGO_SECRET_KEY into .env.prod\n"
+    )
+
+if len(_secret) < 50:
+    sys.exit(
+        f"\n"
+        f"FATAL: DJANGO_SECRET_KEY is too short ({len(_secret)} chars, minimum 50).\n"
+        f"Run:   ./scripts/generate-secrets.sh\n"
+        f"Then:  paste the generated DJANGO_SECRET_KEY into .env.prod\n"
+    )
+
+# Also catch keys that contain obvious dev/placeholder substrings
+_INSECURE_SUBSTRINGS = ("insecure", "change_me", "changeme", "change-me", "placeholder")
+if any(s in _secret.lower() for s in _INSECURE_SUBSTRINGS):
+    sys.exit(
+        "\n"
+        "FATAL: DJANGO_SECRET_KEY contains a suspicious substring.\n"
+        "Run:   ./scripts/generate-secrets.sh\n"
+    )
+
+# ── Allowed hosts ────────────────────────────────────────────────────────
 ALLOWED_HOSTS = env.list(  # noqa: F405
     "DJANGO_ALLOWED_HOSTS",
     default=[],
 )
 
-# Trusted origins for CSRF when posting through the reverse proxy (Nginx)
+if not ALLOWED_HOSTS:
+    sys.exit(
+        "\n"
+        "FATAL: DJANGO_ALLOWED_HOSTS is empty in production.\n"
+        "Set it in .env.prod, e.g.: DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1\n"
+    )
+
+if "*" in ALLOWED_HOSTS:
+    sys.exit(
+        "\n"
+        "FATAL: DJANGO_ALLOWED_HOSTS contains '*' — not safe in production.\n"
+        "Set explicit hostnames in .env.prod.\n"
+    )
+
+# ── CSRF trusted origins ─────────────────────────────────────────────────
 CSRF_TRUSTED_ORIGINS = env.list(  # noqa: F405
     "CSRF_TRUSTED_ORIGINS",
     default=[],
 )
 
-# ----------------------------------------------------------------------
-# Database (PostgreSQL)
-# ----------------------------------------------------------------------
+# ── Database (PostgreSQL) ────────────────────────────────────────────────
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -34,25 +94,23 @@ DATABASES = {
         "PASSWORD": env("POSTGRES_PASSWORD"),  # noqa: F405
         "HOST": env("POSTGRES_HOST", default="db"),  # noqa: F405
         "PORT": env("POSTGRES_PORT", default="5432"),  # noqa: F405
+        "CONN_MAX_AGE": 60,  # reuse DB connections for 60s (performance)
     }
 }
 
-# ----------------------------------------------------------------------
-# Static & media
-# STATIC_ROOT, SECURE_PROXY_SSL_HEADER, USE_X_FORWARDED_HOST, and media
-# (USE_S3 / MinIO) are all already defined in base.py — no overrides here.
-# ----------------------------------------------------------------------
+# ── Static & media ───────────────────────────────────────────────────────
+# STATIC_ROOT, USE_S3 / MinIO, and media are defined in base.py.
+# No overrides needed here.
 
-# ----------------------------------------------------------------------
-# Production security hardening
+# ── Production security hardening ───────────────────────────────────────
 #
-# ENABLED for real production (HTTPS behind Nginx),
-# DISABLED for local Docker testing over plain HTTP.
-# Controlled by the DJANGO_SECURE_SSL env variable.
-# ----------------------------------------------------------------------
+# DJANGO_SECURE_SSL controls HTTPS-dependent settings:
+#   false → local Docker testing over plain HTTP  (current: Days 31-37)
+#   true  → real HTTPS behind nginx + Let's Encrypt (Day 40+)
+#
 SECURE_SSL = env.bool("DJANGO_SECURE_SSL", default=True)  # noqa: F405
 
-# Always-safe headers (regardless of HTTPS)
+# Always-on security headers (HTTP and HTTPS)
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 SESSION_COOKIE_HTTPONLY = True
@@ -62,25 +120,23 @@ if SECURE_SSL:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_SECONDS = 31_536_000  # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 else:
+    # Plain HTTP (local prod testing) — cookies still work, just not
+    # marked Secure so the browser doesn't block them over HTTP.
     SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
 
-# ----------------------------------------------------------------------
-# CORS — origins from environment in production
-# ----------------------------------------------------------------------
+# ── CORS ─────────────────────────────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = env.list(  # noqa: F405
     "CORS_ALLOWED_ORIGINS",
     default=[],
 )
 
-# ----------------------------------------------------------------------
-# Logging to stdout (Docker captures it)
-# ----------------------------------------------------------------------
+# ── Logging → stdout (Docker / systemd captures it) ──────────────────────
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

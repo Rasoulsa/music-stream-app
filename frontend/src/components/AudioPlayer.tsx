@@ -14,6 +14,25 @@ function formatTime(seconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+function resolveAudioSrc(song: any): string {
+  const raw =
+    song?.audio_file ||
+    song?.audio_url ||
+    song?.file ||
+    '';
+
+  if (!raw) return '';
+
+  // Already absolute or root-relative
+  if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+    return raw;
+  }
+
+  // If API returns only object key:
+  // songs/audio/file.mp3 -> /music-media/songs/audio/file.mp3
+  return `/music-media/${raw}`;
+}
+
 export function AudioPlayer() {
   const { currentSong, isPlaying, setIsPlaying, togglePlay, playNext, playPrev } =
     usePlayer();
@@ -23,16 +42,49 @@ export function AudioPlayer() {
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
 
-  // Sync play/pause state with the <audio> element
+  const audioSrc = currentSong ? resolveAudioSrc(currentSong) : '';
+
+  // Debug current song/source
+  useEffect(() => {
+    if (!currentSong) return;
+
+    console.log('[AudioPlayer] currentSong:', currentSong);
+    console.log('[AudioPlayer] resolved audioSrc:', audioSrc);
+  }, [currentSong, audioSrc]);
+
+  // When song/source changes, force audio element to reload.
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || !audioSrc) return;
+
+    audio.load();
+
     if (isPlaying) {
-      audio.play().catch(() => setIsPlaying(false));
+      audio.play().catch((err) => {
+        console.error('[AudioPlayer] play() failed after src change:', err);
+        console.error('[AudioPlayer] audio src:', audio.currentSrc || audio.src);
+        console.error('[AudioPlayer] audio error:', audio.error);
+        setIsPlaying(false);
+      });
+    }
+  }, [audioSrc, isPlaying, setIsPlaying]);
+
+  // Sync play/pause state with the <audio> element.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !audioSrc) return;
+
+    if (isPlaying) {
+      audio.play().catch((err) => {
+        console.error('[AudioPlayer] play() failed:', err);
+        console.error('[AudioPlayer] src:', audio.currentSrc || audio.src);
+        console.error('[AudioPlayer] error:', audio.error);
+        setIsPlaying(false);
+      });
     } else {
       audio.pause();
     }
-  }, [isPlaying, currentSong, setIsPlaying]);
+  }, [isPlaying, audioSrc, setIsPlaying]);
 
   // Apply volume
   useEffect(() => {
@@ -69,6 +121,7 @@ export function AudioPlayer() {
               <span>🎵</span>
             )}
           </div>
+
           <div className="min-w-0">
             <div className="text-sm font-semibold text-[var(--text)] truncate">
               {currentSong.title}
@@ -89,6 +142,7 @@ export function AudioPlayer() {
             >
               ⏮
             </button>
+
             <button
               onClick={togglePlay}
               className="w-9 h-9 rounded-full bg-[var(--brand)] text-white flex items-center justify-center hover:opacity-90 transition-opacity"
@@ -96,6 +150,7 @@ export function AudioPlayer() {
             >
               {isPlaying ? '⏸' : '▶'}
             </button>
+
             <button
               onClick={playNext}
               className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
@@ -109,6 +164,7 @@ export function AudioPlayer() {
             <span className="text-[10px] text-[var(--text-muted)] w-8 text-right">
               {formatTime(currentTime)}
             </span>
+
             <input
               type="range"
               min={0}
@@ -117,6 +173,7 @@ export function AudioPlayer() {
               onChange={handleSeek}
               className="flex-1 h-1 accent-[var(--brand)] cursor-pointer"
             />
+
             <span className="text-[10px] text-[var(--text-muted)] w-8">
               {formatTime(duration)}
             </span>
@@ -126,6 +183,7 @@ export function AudioPlayer() {
         {/* Volume */}
         <div className="hidden sm:flex items-center gap-2 w-1/6">
           <span className="text-sm">🔊</span>
+
           <input
             type="range"
             min={0}
@@ -141,11 +199,24 @@ export function AudioPlayer() {
         <audio
           key={currentSong.id}
           ref={audioRef}
-          src={currentSong.audio_file}
-          onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+          src={audioSrc}
+          preload="metadata"
+          onLoadedMetadata={(e) => {
+            console.log('[AudioPlayer] metadata loaded:', e.currentTarget.duration);
+            setDuration(e.currentTarget.duration);
+          }}
+          onCanPlay={() => {
+            console.log('[AudioPlayer] can play:', audioSrc);
+          }}
           onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
           onEnded={playNext}
-          autoPlay
+          onError={(e) => {
+            const audio = e.currentTarget;
+            console.error('[AudioPlayer] audio element error');
+            console.error('[AudioPlayer] src:', audio.currentSrc || audio.src);
+            console.error('[AudioPlayer] error:', audio.error);
+            setIsPlaying(false);
+          }}
         />
       </div>
     </div>
