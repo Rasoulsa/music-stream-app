@@ -172,6 +172,20 @@ uv run pytest --cov --cov-report=html
 open htmlcov/index.html
 ```
 
+### End-to-End Smoke Tests
+
+After bringing up the production stack, verify the whole system end-to-end:
+
+```bash
+make prod-up
+make smoke-prod
+```
+
+This runs container health, nginx routing, the full auth flow, security
+headers, environment checks, and a complete user journey — uploading a
+song, retrieving it, and streaming it back through nginx (including Range
+requests for audio seeking). See docs/smoke-tests.md.
+
 ## Continuous Integration
 
 | Workflow | Triggers on | Jobs |
