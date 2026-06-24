@@ -192,6 +192,31 @@ npm ci && npm run lint && npm run format:check && npm run test && npm run build
 1. VPS deployment using Docker Compose
 2. Cloud deployment/migration (likely AWS)
 
+### Nginx Routing (Production-Grade)
+
+The edge nginx (`music-nginx`) is the single public entry point on
+port 80. It reverse-proxies all traffic and is the only exposed port
+in the stack — Postgres, Redis, and MinIO stay internal.
+
+**Routing:**
+| Path | Destination |
+|------|-------------|
+| `/api/`, `/admin/` | Django (gunicorn) `backend:8000` |
+| `/static/`, `/media/` | Shared Docker volumes (direct) |
+| `/music-media/` | MinIO `minio:9000` (proxied, never public) |
+| `/healthz` | nginx liveness (200, no upstream) |
+| everything else | React SPA `frontend:80` → `try_files` fallback |
+
+**Production hardening:** gzip compression, browser cache headers,
+baseline security headers (`X-Content-Type-Options`, `X-Frame-Options`,
+`Referrer-Policy`), upstream keepalive, hidden nginx version, and tuned
+timeouts for 50 MB audio uploads.
+
+```bash
+make prod-up
+curl http://localhost/healthz     # → ok
+```
+
 ## 📔 Development Journal
 
 For day-by-day implementation details, see [`docs/JOURNAL.md`](docs/JOURNAL.md).

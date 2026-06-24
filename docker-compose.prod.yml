@@ -89,7 +89,7 @@ services:
       - minio
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost/api/health/"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/healthz"]
       interval: 10s
       timeout: 5s
       retries: 5
