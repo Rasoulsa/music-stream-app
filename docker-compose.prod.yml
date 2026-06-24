@@ -17,6 +17,11 @@ services:
     restart: unless-stopped
     # No ports — Django reaches MinIO via http://minio:9000
     # Temporarily expose console: add "9001:9001" here if needed
+    # SECURITY: Only the S3 API (9000) is reachable, and only
+    # internally via the docker network + nginx /music-media/ proxy.
+    # The admin console (9001) is intentionally NOT published to the
+    # host in production. Use a temporary port-forward for admin tasks.
+    # ports: []   # nothing exposed
 
   createbuckets:
     env_file:

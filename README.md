@@ -217,6 +217,45 @@ make prod-up
 curl http://localhost/healthz     # → ok
 ```
 
+### Environment & Secrets Management
+
+Production-grade configuration with a clean separation between committed
+templates and real secrets.
+
+**Strategy**
+
+| File                  | In git? | Purpose                                  |
+| --------------------- | ------- | ---------------------------------------- |
+| `.env.dev`            | ❌ No   | Local development secrets                |
+| `.env.prod`           | ❌ No   | Production secrets (never committed)     |
+| `.env.dev.example`    | ✅ Yes  | Template for local dev                   |
+| `.env.prod.example`   | ✅ Yes  | Template for production                  |
+
+- Settings split via `DJANGO_SETTINGS_MODULE` (`production` → `DEBUG=False`,
+  enforced `SECRET_KEY`, security headers).
+- `.gitignore` blocks all real `.env.*` files so secrets never reach git.
+
+**Tooling**
+
+```bash
+# Validate required env vars are present before boot
+./scripts/check-env.sh
+
+# Run the full production smoke test
+./scripts/smoke-prod.sh
+```
+
+The smoke test covers container health, infrastructure endpoints, API
+contract, auth + database flow, MinIO object storage proxy, security
+headers, and env/secrets configuration.
+
+## MinIO security note
+
+Port 9000 (S3 API): internal-only; the frontend reaches media exclusively through nginx at /music-media/.
+Port 9001 (admin console): intentionally not exposed in production.
+See docs/env-management.md for the full guide.
+
+
 ## 📔 Development Journal
 
 For day-by-day implementation details, see [`docs/JOURNAL.md`](docs/JOURNAL.md).

@@ -14,7 +14,7 @@ services:
       - ./.env.dev
     ports:
       - "9000:9000"
-      - "9001:9001"
+      - "9001:9001" # console — dev convenience only
 
   createbuckets:
     env_file:

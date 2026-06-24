@@ -18,7 +18,7 @@ build/
 venv/
 env/
 
-# Django local database/media/static
+# Django local database / media / static
 *.sqlite3
 db.sqlite3
 backend/media/
@@ -27,17 +27,31 @@ backend/staticfiles/
 # Testing / coverage
 .pytest_cache/
 .coverage
-htmlcov/
 .coverage.*
+htmlcov/
+coverage.xml
 .ruff_cache/
 .mypy_cache/
 
 # =========================================
 # Environment variables / secrets
 # =========================================
+# Real env files are NEVER committed.
 .env
 .env.*
+backend/.env
+backend/.env.*
+frontend/.env
+frontend/.env.*
+
+# Exception: example/template files ARE committed.
+# These contain only CHANGE_ME placeholders, never real secrets.
 !.env.example
+!.env.*.example
+!frontend/.env.example
+!frontend/.env.*.example
+
+# TLS/SSL keys — never commit
 *.pem
 *.key
 *.crt
@@ -50,7 +64,6 @@ frontend/node_modules/
 frontend/dist/
 frontend/build/
 .vite/
-*.local
 
 # =========================================
 # Logs
@@ -59,7 +72,7 @@ frontend/build/
 logs/
 
 # =========================================
-# Docker / local runtime files
+# Docker / local runtime
 # =========================================
 docker-data/
 *.pid
@@ -78,9 +91,3 @@ Thumbs.db
 tmp/
 temp/
 .cache/
-
-# Coverage
-.coverage
-.coverage.*
-htmlcov/
-coverage.xml

@@ -957,3 +957,49 @@ The edge nginx is what makes this possible.
 ### Magic moment
 Register + login in the browser at http://localhost — zero CORS errors.
 Frontend + backend share one origin behind the edge nginx. 🎯
+
+## Day 32 — Dockerize Frontend (2026-06-24)
+
+## Goal
+Harden the edge reverse proxy and frontend nginx from "working"
+(Day 31) to "production-grade": compression, caching, security
+headers, connection reuse, and a proper health endpoint.
+
+## Architecture
+                     ┌─────────────────────────────┐
+browser :80 ────────► │   Edge nginx (music-nginx)  │
+│   the ONLY public port      │
+└──────────────┬──────────────┘
+┌─────────────────────────┼───────────────────────┐
+▼                         ▼                        ▼
+/api, /admin             /music-media/            / (everything)
+backend:8000             minio:9000               frontend:80
+(gunicorn)               (S3 objects)             (React SPA nginx)
+│                                                  │
+/static, /media  ──► served directly from shared volumes │
+▼
+try_files → index.html
+(React Router fallback)
+
+## Key decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Two-nginx (edge + frontend) | Each service independently deployable; matches container ownership model |
+| Single public port (80) | Minimal attack surface; MinIO/Redis/DB never exposed |
+| MinIO proxied via `/music-media/` | Browser never talks to MinIO directly; keeps it internal |
+| Keepalive upstreams | Reuse TCP to backends → lower latency |
+| gzip at edge | Compress API JSON + static; ~70% payload reduction |
+| `/healthz` for nginx liveness | Pure liveness, no Django load; backend has own healthcheck |
+
+## Bug fixed
+- MinIO `Host` header was `$host` (`localhost`) which breaks S3
+  signature/routing. Changed to `minio:9000`.
+
+## Verification
+```bash
+docker run --rm -v "$(pwd)/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
+  nginx:1.27-alpine nginx -t        # syntax check
+make prod-up
+curl -s http://localhost/healthz    # → ok
+```
