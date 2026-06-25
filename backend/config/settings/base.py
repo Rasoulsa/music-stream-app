@@ -260,7 +260,37 @@ REST_FRAMEWORK = {
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
     ],
+    # ── Throttling ──────────────────────────────────
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "30/min",
+        "user": "120/min",
+        "login": "5/min",
+        "upload": "10/min",
+    },
 }
+
+# -----------------------------------------------------------------------------
+# CORS
+# -----------------------------------------------------------------------------
+# Never use CORS_ALLOW_ALL_ORIGINS=True in production.
+CORS_ALLOWED_ORIGINS = env.list(
+    "CORS_ALLOWED_ORIGINS",
+    default=["http://localhost", "http://127.0.0.1"],
+)
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_METHODS = ["DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT"]
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "authorization",
+    "content-type",
+    "origin",
+    "x-csrftoken",
+    "x-requested-with",
+]
 
 # -----------------------------------------------------------------------------
 # API Documentation (drf-spectacular / OpenAPI 3)

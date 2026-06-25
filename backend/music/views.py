@@ -13,6 +13,7 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 from music.filters import SongFilter
 from music.models import Song
@@ -24,6 +25,11 @@ from music.serializers import (
     SongSerializer,
 )
 from music.tasks import process_song_audio
+from music.throttles import (
+    LoginRateThrottle,
+    RegisterRateThrottle,
+    UploadRateThrottle,
+)
 
 User = get_user_model()
 
@@ -70,7 +76,14 @@ def health_check(request):
 # ── Authentication ─────────────────────────────────────────────────────────────
 
 
-@extend_schema(tags=["aut"])
+@extend_schema(tags=["auth"])
+class ThrottledTokenObtainPairView(TokenObtainPairView):
+    """JWT login with brute-force rate limiting (5 attempts/min/IP)."""
+
+    throttle_classes = [LoginRateThrottle]
+
+
+@extend_schema(tags=["auth"])
 class RegisterView(generics.CreateAPIView):
     """
     API endpoint for registering a new user.
@@ -82,6 +95,7 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = (permissions.AllowAny,)
+    throttle_classes = [RegisterRateThrottle]
 
 
 # ── Songs ──────────────────────────────────────────────────────────────────────
@@ -149,6 +163,12 @@ class SongViewSet(viewsets.ModelViewSet):
         song = serializer.save(owner=self.request.user)
         # Queue background processing (async in Docker/prod, inline in dev/tests).
         process_song_audio.delay(song.id)
+
+    def get_throttles(self):
+        """Stricter upload throttle only on song creation."""
+        if self.action == "create":
+            return [UploadRateThrottle()]
+        return super().get_throttles()
 
 
 # ── Profiles ───────────────────────────────────────────────────────────────────

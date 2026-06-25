@@ -12,10 +12,14 @@ Security model:
 from .base import *  # noqa: F401,F403
 from .base import env  # noqa: F401
 
-# ── Always off in production ────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Always off in production
+# -----------------------------------------------------------------------------
 DEBUG = False
 
-# ── Fail-loud guard ─────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Fail-loud guard
+# -----------------------------------------------------------------------------
 _INSECURE_KEYS = {
     "",
     "unsafe-dev-secret-key",
@@ -51,7 +55,9 @@ if any(s in _secret.lower() for s in _INSECURE_SUBSTRINGS):
         "Run:   ./scripts/generate-secrets.sh\n"
     )
 
-# ── Allowed hosts ────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Allowed hosts
+# -----------------------------------------------------------------------------
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[])  # noqa: F405
 
 if not ALLOWED_HOSTS:
@@ -68,7 +74,9 @@ if "*" in ALLOWED_HOSTS:
         "Set explicit hostnames in .env.prod.\n"
     )
 
-# ── Database (PostgreSQL) ────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Database (PostgreSQL)
+# -----------------------------------------------------------------------------
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -81,11 +89,17 @@ DATABASES = {
     }
 }
 
-# ── Static & media ───────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Static & media
+# -----------------------------------------------------------------------------
+#
 # STATIC_ROOT, USE_S3 / MinIO, and media are defined in base.py.
 # No overrides needed here.
+#
 
-# ── Production security hardening ───────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Production security hardening
+# -----------------------------------------------------------------------------
 #
 # DJANGO_SECURE_SSL controls HTTPS-dependent settings:
 #   false → local Docker testing over plain HTTP  (current: Days 31-37)
@@ -113,13 +127,17 @@ else:
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
 
-# ── CORS ─────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# CORS
+# -----------------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = env.list(  # noqa: F405
     "CORS_ALLOWED_ORIGINS",
-    default=[],
+    default=["https://yourdomain.com"],
 )
 
-# ── Logging → stdout (Docker / systemd captures it) ──────────────────────
+# -----------------------------------------------------------------------------
+# Logging → stdout (Docker / systemd captures it)
+# -----------------------------------------------------------------------------
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

@@ -263,6 +263,26 @@ The smoke test covers container health, infrastructure endpoints, API
 contract, auth + database flow, MinIO object storage proxy, security
 headers, and env/secrets configuration.
 
+## 🔒 Security
+
+The app is hardened against common web threats:
+
+- **CORS**: explicit origin allowlist (no wildcards)
+- **Security headers**: HSTS, X-Frame-Options, nosniff, Referrer-Policy
+- **Secure cookies**: `Secure`, `HttpOnly`, `SameSite=Lax`
+- **Rate limiting** (DRF throttling, backed by Redis):
+  - Anonymous: 30/min · Authenticated: 120/min
+  - Login: 5/min (brute-force protection)
+  - Upload: 10/min
+- **nginx**: request body limit, version hidden
+
+See [`docs/security.md`](docs/security.md) for the full threat model.
+
+Verify headers:
+```bash
+curl -sI http://localhost/api/health/
+```
+
 ## MinIO security note
 
 Port 9000 (S3 API): internal-only; the frontend reaches media exclusively through nginx at /music-media/.
