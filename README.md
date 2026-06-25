@@ -1,28 +1,88 @@
 # 🎵 Music Stream App
 
-![CI](https://github.com/Rasoulsa/music-stream-app/actions/workflows/ci.yml/badge.svg)
-![Coverage](https://codecov.io/gh/Rasoulsa/music-stream-app/branch/main/graph/badge.svg)
+![Backend CI](https://github.com/Rasoulsa/music-stream-app/actions/workflows/ci.yml/badge.svg)
+![Frontend CI](https://github.com/Rasoulsa/music-stream-app/actions/workflows/frontend-ci.yml/badge.svg)
+![Python](https://img.shields.io/badge/Python-3.13-blue)
+![Django](https://img.shields.io/badge/Django-5.1-green)
+![React](https://img.shields.io/badge/React-TypeScript-61DAFB)
+![Docker](https://img.shields.io/badge/Docker-Compose-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-A full-stack, dockerized music streaming application built as a professional portfolio project.
+A full-stack, dockerized music streaming application built as a professional
+portfolio project.
 
-The goal of this project is to demonstrate practical backend development, frontend development, Docker, testing, CI/CD, and real deployment practices.
+The project demonstrates real-world backend development, frontend development,
+Docker, testing, CI/CD, production hardening, caching, background jobs, object
+storage, and deployment preparation.
+
+---
 
 ## 🚧 Project Status
 
-🟡 In active development.
+🟢 **Phase 4 complete — Integration & Production finished.**
 
-This project is being built step by step with a professional Git/GitHub workflow.
+Current roadmap position:
 
-## 🎯 Project Goals
+```text
+Phase 1: Backend Foundation        ✅ Done
+Phase 2: Backend Hardening         ✅ Done
+Phase 3: Frontend                  ✅ Done
+Phase 4: Integration & Production  ✅ Done
+Phase 5: Deployment & Cloud        ⏭️ Next
+```
 
-- Build a real online music player application
-- Use Django and Django REST Framework for the backend
-- Use React, TypeScript, and Vite for the frontend
-- Use Docker and Docker Compose for development and deployment
-- Add automated tests for backend and frontend
-- Add CI/CD with GitHub Actions
-- Deploy first to a VPS
-- Later migrate or extend deployment to AWS/cloud
+Next phase:
+
+```text
+Day 38 → VPS setup
+Day 39 → Manual VPS deploy
+Day 40 → Domain + HTTPS
+Day 41 → CI/CD auto-deploy
+Day 42 → Monitoring + logging
+Day 43 → Backups
+Day 44 → AWS/cloud migration intro
+Day 45 → Final demo prep
+```
+
+---
+
+## ✨ Features
+
+- [x] User registration
+- [x] JWT login and token refresh
+- [x] Protected routes on the frontend
+- [x] Upload songs
+- [x] Stream/play songs
+- [x] HTTP Range request support for seeking audio
+- [x] Song list and search
+- [x] Public feed
+- [x] User profile page
+- [x] Public user profile pages
+- [x] Background audio processing with Celery
+- [x] Audio metadata extraction
+- [x] Object storage with MinIO locally and S3-compatible storage in production
+- [x] PostgreSQL database
+- [x] Redis cache and Celery broker
+- [x] Dockerized development environment
+- [x] Dockerized production-like environment
+- [x] Nginx reverse proxy
+- [x] OpenAPI schema, Swagger UI, and Redoc
+- [x] Versioned REST API under `/api/v1/`
+- [x] Automated backend tests with pytest
+- [x] Automated frontend tests with Vitest and React Testing Library
+- [x] GitHub Actions CI
+- [x] Environment and secrets management
+- [x] Production smoke test script
+- [x] Security pass: CORS, headers, rate limiting
+- [x] Performance pass: query optimization and caching
+- [x] Documentation polish with architecture diagrams
+- [ ] Live VPS deployment
+- [ ] Domain + HTTPS
+- [ ] Monitoring and backups
+- [ ] Playlists
+- [ ] Favorite/liked songs
+
+---
 
 ## 🛠️ Tech Stack
 
@@ -30,286 +90,538 @@ This project is being built step by step with a professional Git/GitHub workflow
 |---|---|
 | Backend | Django, Django REST Framework |
 | Frontend | React, TypeScript, Vite |
+| API Client | Axios |
+| Routing | React Router |
+| Frontend State / Data | React Context, TanStack Query |
 | Database | PostgreSQL |
-| Cache / Broker | Redis |
+| Cache | Redis |
 | Background Jobs | Celery |
-| Storage | MinIO locally, S3 in production |
-| Containerization | Docker, Docker Compose |
+| Broker | Redis |
+| Storage | MinIO locally, S3-compatible storage in production |
 | Reverse Proxy | Nginx |
-| Testing | pytest, Vitest, React Testing Library |
+| Authentication | JWT with SimpleJWT |
+| API Docs | drf-spectacular, OpenAPI, Swagger, Redoc |
+| Testing | pytest, pytest-cov, Vitest, React Testing Library |
+| Linting / Formatting | Ruff, ESLint, Prettier |
+| Containerization | Docker, Docker Compose |
 | CI/CD | GitHub Actions |
-| Deployment | VPS first, cloud later |
+| Deployment Target | VPS first, cloud later |
 
-## ✨ Features
-
-- [x] User registration and login
-- [x] JWT authentication
-- [x] Upload songs
-- [x] Stream/play songs
-- [x] Song list and search
-- [x] Background audio processing (Celery)
-- [x] Dockerized development and production environments
-- [x] Automated backend tests with 100% coverage
-- [x] CI/CD pipeline
-- [x] Versioned REST API (`/api/v1/`) with frozen contract
-- [ ] Playlists
-- [ ] Favorite/liked songs
-- [ ] Frontend (React + TypeScript)
-- [ ] Live VPS deployment
+---
 
 ## 📐 Architecture
 
+```mermaid
+graph TB
+    Browser["Browser / React SPA"] --> Nginx["Nginx Reverse Proxy"]
+
+    Nginx --> Frontend["Frontend Container"]
+    Nginx --> Backend["Backend Container<br/>Django + DRF + Gunicorn"]
+    Nginx --> Storage["MinIO / S3<br/>Media Storage"]
+
+    Backend --> DB["PostgreSQL"]
+    Backend --> Redis["Redis<br/>Cache + Broker"]
+    Backend --> Storage
+
+    Backend --> CeleryQueue["Redis Queue"]
+    Celery["Celery Worker"] --> CeleryQueue
+    Celery --> DB
+    Celery --> Storage
+```
+
+Nginx is the public entrypoint. It routes frontend requests, API requests, and
+media streaming requests. Backend services such as PostgreSQL, Redis, Celery,
+and MinIO are internal services in the Docker network.
+
+For the full architecture documentation, see:
+
+👉 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
+
+---
+
+## 🔁 Main Request Flows
+
+### Authentication
+
 ```text
 Browser
-   |
-   v
-Nginx :80
-   |
-   |--- /static/   → served directly by Nginx
-   |--- /media/    → served by MinIO (or Nginx in local-disk mode)
-   |--- /api/      → Gunicorn :8000 (internal) → Django
-                            |
-                            |--- PostgreSQL
-                            |--- Redis
-                            |--- Celery Worker
-                            |--- MinIO / S3
+  → Nginx
+  → Django API
+  → Redis throttle check
+  → PostgreSQL user verification
+  → JWT access + refresh tokens
 ```
 
-## 🌐 API
-
-The backend exposes a versioned REST API. All resource endpoints live under `/api/v1/`.
-Operational endpoints are intentionally unversioned so they stay stable across API versions.
-
-| Type | Example endpoints |
-|------|------------------|
-| Versioned | `/api/v1/songs/`, `/api/v1/feed/`, `/api/v1/users/me/` |
-| Unversioned | `/api/health/`, `/api/schema/`, `/api/docs/` |
-
-- Breaking changes will introduce `/api/v2/` — `/api/v1/` is never mutated.
-- The OpenAPI schema is **frozen**: a contract test fails if the public API shape drifts unintentionally.
-
-## 🗄️ Object Storage
-
-Media files (audio, avatars) are stored in S3-compatible object storage.
-
-| Environment | Storage |
-|-------------|---------|
-| Local dev | Local disk (`USE_S3=false`) |
-| Docker | MinIO (`USE_S3=true`) |
-| Production | AWS S3 (`USE_S3=true`) |
-
-MinIO console (Docker): http://localhost:9001 (minioadmin / minioadmin123)
-
-Switching between MinIO and S3 requires **no code changes** — only environment variables change.
-
-## ⚡ Caching (Redis)
-
-The public feed is cached in Redis for fast, low-load reads.
-
-| Environment | Cache backend |
-|-------------|---------------|
-| Local dev | In-memory (`REDIS_URL` empty) |
-| Docker | Redis 7 (`redis://redis:6379/1`) |
-| Production | Redis (managed or self-hosted) |
-
-- Default feed is cached for 60 seconds and invalidated automatically when songs change.
-- Filtered/searched feed queries always hit the database (fresh results).
-- Health check: `GET /api/health/` reports API and cache status.
-
-Redis also serves as the Celery broker for background tasks.
-
-## 🔄 Background Tasks (Celery)
-
-Audio processing runs asynchronously via Celery workers.
-
-| Environment | Broker |
-|-------------|--------|
-| Docker / Production | Redis (`redis://redis:6379/0`) |
-
-- Song uploads trigger a processing task automatically via Django signals.
-- Task retries are configured for resilience against transient failures.
-
-## 🌍 Production Serving (Nginx + Gunicorn)
-
-Nginx is the single public entry point (port 80) and reverse-proxies to Gunicorn (internal only).
+### Song Upload
 
 ```text
-internet → Nginx :80 → Gunicorn :8000 (internal) → Django
-                     → /static/  served directly by Nginx
-                     → /media/   served by MinIO (or Nginx in local-disk mode)
+Browser
+  → Nginx
+  → Django API
+  → MinIO/S3 stores audio file
+  → PostgreSQL stores song row
+  → Celery task is queued
+  → Celery extracts metadata
 ```
 
-## 🚀 Running Locally
+### Song Streaming
 
-### Development
+```text
+Browser audio player
+  → Nginx
+  → MinIO/S3 media object
+  → HTTP 200 / 206 response
+```
+
+### Cached Feed
+
+```text
+GET /api/v1/feed/
+  → Check Redis cache
+  → If hit: return cached response
+  → If miss: query PostgreSQL, cache response, return response
+```
+
+---
+
+## 📁 Project Structure
+
+```text
+music-stream-app/
+├── backend/
+│   ├── config/
+│   │   ├── settings/
+│   │   │   ├── base.py
+│   │   │   ├── dev.py
+│   │   │   ├── ci.py
+│   │   │   └── production.py
+│   │   ├── urls.py
+│   │   └── celery.py
+│   ├── music/
+│   │   ├── models.py
+│   │   ├── serializers.py
+│   │   ├── views.py
+│   │   ├── tasks.py
+│   │   ├── throttles.py
+│   │   └── tests/
+│   ├── Dockerfile
+│   ├── pyproject.toml
+│   └── README.md
+├── frontend/
+│   ├── src/
+│   │   ├── api/
+│   │   ├── components/
+│   │   ├── context/
+│   │   ├── hooks/
+│   │   ├── pages/
+│   │   ├── routes/
+│   │   ├── types/
+│   │   └── utils/
+│   ├── Dockerfile
+│   ├── package.json
+│   └── README.md
+├── nginx/
+│   └── nginx.conf
+├── scripts/
+│   ├── check-env.sh
+│   ├── generate-secrets.sh
+│   └── smoke-prod.sh
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── env-management.md
+│   ├── performance.md
+│   ├── security.md
+│   ├── smoke-tests.md
+│   └── JOURNAL.md
+├── docker-compose.yml
+├── docker-compose.dev.yml
+├── docker-compose.prod.yml
+├── Makefile
+└── README.md
+```
+
+---
+
+## 🚀 Quick Start — Development
+
+### 1. Clone the project
 
 ```bash
-make dev-up        # starts all services with hot-reload
-                   # → http://localhost:8000
+git clone https://github.com/Rasoulsa/music-stream-app.git
+cd music-stream-app
 ```
 
-### Production-like
+### 2. Create local environment files
 
 ```bash
-make prod-up       # Nginx + Gunicorn, DEBUG off, hardened
-                   # → http://localhost
+cp .env.example .env
+cp .env.dev.example .env.dev
 ```
 
-## 🧪 Testing
+Edit the files if needed.
 
-| Tool | Purpose |
-|------|---------|
-| pytest + pytest-django | Backend unit and integration tests |
-| pytest-cov | Coverage reporting (minimum 85%, currently 100%) |
-| Vitest + React Testing Library | Frontend tests (planned) |
+### 3. Start the development stack
 
 ```bash
-# Run backend tests with coverage
-make dev-test
-
-# Generate HTML coverage report
-uv run pytest --cov --cov-report=html
-open htmlcov/index.html
+make dev-up-d
 ```
 
-### End-to-End Smoke Tests
+### 4. Run migrations
 
-After bringing up the production stack, verify the whole system end-to-end:
+```bash
+make dev-migrate
+```
+
+### 5. Create a superuser, optional
+
+```bash
+make dev-createsuperuser
+```
+
+### 6. Open the app
+
+Depending on your Docker Compose port configuration:
+
+| Service | URL |
+|---|---|
+| Frontend | `http://localhost:5173` |
+| Backend health | `http://localhost:8000/api/health/` |
+| Swagger UI | `http://localhost:8000/api/docs/` |
+| Redoc | `http://localhost:8000/api/redoc/` |
+| MinIO Console | local development only, if exposed |
+
+---
+
+## 🏭 Production-like Local Stack
+
+The production-like stack runs behind Nginx and uses production settings.
+
+### 1. Prepare production env
+
+```bash
+cp .env.prod.example .env.prod
+```
+
+Generate strong secrets:
+
+```bash
+make secrets
+```
+
+Paste the generated values into `.env.prod`.
+
+### 2. Validate environment
+
+```bash
+make check-env
+```
+
+### 3. Start production stack
 
 ```bash
 make prod-up
+```
+
+### 4. Check services
+
+```bash
+make prod-ps
+```
+
+### 5. Run production smoke test
+
+```bash
 make smoke-prod
 ```
 
-This runs container health, nginx routing, the full auth flow, security
-headers, environment checks, and a complete user journey — uploading a
-song, retrieving it, and streaming it back through nginx (including Range
-requests for audio seeking). See docs/smoke-tests.md.
+Expected result:
 
-## Continuous Integration
+```text
+Results: 52 passed, 0 failed
+```
 
-| Workflow | Triggers on | Jobs |
-|----------|-------------|------|
-| **Backend CI** (`ci.yml`) | push/PR to `main` | Lint & Format (ruff) → Tests (PostgreSQL + coverage) |
-| **Frontend CI** (`frontend-ci.yml`) | `frontend/**` changes | Lint & Format (eslint + prettier) → Tests & Build (vitest + vite) → Docker Build |
+---
 
-Run frontend checks locally before pushing:
+## 🧪 Testing
+
+### Backend tests
+
+Run backend tests locally against the disposable test database:
+
+```bash
+make test-backend
+```
+
+Run backend tests with coverage:
+
+```bash
+make test-backend-cov
+```
+
+Run backend performance tests:
+
+```bash
+make test-backend-perf
+```
+
+Run tests inside the development Docker stack:
+
+```bash
+make dev-test
+make dev-test-cov
+```
+
+---
+
+### Frontend tests
 
 ```bash
 cd frontend
-npm ci && npm run lint && npm run format:check && npm run test && npm run build
+npm install
+npm test
 ```
 
-
-## 📦 Deployment Plan
-
-1. VPS deployment using Docker Compose
-2. Cloud deployment/migration (likely AWS)
-
-### Nginx Routing (Production-Grade)
-
-The edge nginx (`music-nginx`) is the single public entry point on
-port 80. It reverse-proxies all traffic and is the only exposed port
-in the stack — Postgres, Redis, and MinIO stay internal.
-
-**Routing:**
-| Path | Destination |
-|------|-------------|
-| `/api/`, `/admin/` | Django (gunicorn) `backend:8000` |
-| `/static/`, `/media/` | Shared Docker volumes (direct) |
-| `/music-media/` | MinIO `minio:9000` (proxied, never public) |
-| `/healthz` | nginx liveness (200, no upstream) |
-| everything else | React SPA `frontend:80` → `try_files` fallback |
-
-**Production hardening:** gzip compression, browser cache headers,
-baseline security headers (`X-Content-Type-Options`, `X-Frame-Options`,
-`Referrer-Policy`), upstream keepalive, hidden nginx version, and tuned
-timeouts for 50 MB audio uploads.
+Build the frontend:
 
 ```bash
-make prod-up
-curl http://localhost/healthz     # → ok
+npm run build
 ```
 
-### Environment & Secrets Management
-
-Production-grade configuration with a clean separation between committed
-templates and real secrets.
-
-**Strategy**
-
-| File                  | In git? | Purpose                                  |
-| --------------------- | ------- | ---------------------------------------- |
-| `.env.dev`            | ❌ No   | Local development secrets                |
-| `.env.prod`           | ❌ No   | Production secrets (never committed)     |
-| `.env.dev.example`    | ✅ Yes  | Template for local dev                   |
-| `.env.prod.example`   | ✅ Yes  | Template for production                  |
-
-- Settings split via `DJANGO_SETTINGS_MODULE` (`production` → `DEBUG=False`,
-  enforced `SECRET_KEY`, security headers).
-- `.gitignore` blocks all real `.env.*` files so secrets never reach git.
-
-**Tooling**
+Run linting:
 
 ```bash
-# Validate required env vars are present before boot
-./scripts/check-env.sh
-
-# Run the full production smoke test
-./scripts/smoke-prod.sh
+npm run lint
 ```
 
-The smoke test covers container health, infrastructure endpoints, API
-contract, auth + database flow, MinIO object storage proxy, security
-headers, and env/secrets configuration.
+---
 
-## 🔒 Security
+## 📚 API Reference
 
-The app is hardened against common web threats:
+The API is versioned under:
 
-- **CORS**: explicit origin allowlist (no wildcards)
-- **Security headers**: HSTS, X-Frame-Options, nosniff, Referrer-Policy
-- **Secure cookies**: `Secure`, `HttpOnly`, `SameSite=Lax`
-- **Rate limiting** (DRF throttling, backed by Redis):
-  - Anonymous: 30/min · Authenticated: 120/min
-  - Login: 5/min (brute-force protection)
-  - Upload: 10/min
-- **nginx**: request body limit, version hidden
+```text
+/api/v1/
+```
 
-See [`docs/security.md`](docs/security.md) for the full threat model.
+The health check is intentionally unversioned:
 
-Verify headers:
+```text
+/api/health/
+```
+
+This keeps Docker and Nginx health checks stable even if the API version changes.
+
+---
+
+### Auth endpoints
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/auth/register/` | Register a new user |
+| `POST` | `/api/v1/auth/login/` | Login and receive JWT tokens |
+| `POST` | `/api/v1/auth/refresh/` | Refresh JWT access token |
+
+---
+
+### User endpoints
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` / `PATCH` | `/api/v1/users/me/` | Current user profile |
+| `GET` | `/api/v1/users/<username>/` | Public user profile |
+| `GET` | `/api/v1/users/<username>/songs/` | Public songs by user |
+
+---
+
+### Song endpoints
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/songs/` | List public songs |
+| `POST` | `/api/v1/songs/` | Upload a song |
+| `GET` | `/api/v1/songs/<id>/` | Retrieve a song |
+| `PATCH` | `/api/v1/songs/<id>/` | Update a song |
+| `DELETE` | `/api/v1/songs/<id>/` | Delete a song |
+| `GET` | `/api/v1/songs/mine/` | List current user's songs |
+| `GET` | `/api/v1/feed/` | Public cached feed |
+
+---
+
+### API documentation endpoints
+
+| Endpoint | Purpose |
+|---|---|
+| `/api/schema/` | OpenAPI schema |
+| `/api/docs/` | Swagger UI |
+| `/api/redoc/` | Redoc UI |
+
+---
+
+## 🔐 Security Highlights
+
+Security work is documented in:
+
+👉 [`docs/security.md`](./docs/security.md)
+
+Implemented items include:
+
+- `DEBUG=False` in production
+- Environment-based secrets
+- Git-ignored real env files
+- Example env files committed safely
+- CORS configuration
+- Security headers
+- Hidden Nginx version
+- JWT authentication
+- Login rate limiting
+- Registration/upload throttling
+- MinIO console not exposed in production
+- Production smoke test checks for headers and exposed ports
+
+---
+
+## ⚡ Performance Highlights
+
+Performance work is documented in:
+
+👉 [`docs/performance.md`](./docs/performance.md)
+
+Implemented items include:
+
+- Feed query optimization
+- Redis feed caching
+- Database index for public recent songs
+- API feed response target under 500ms
+- Gzip compression for API responses
+- Performance smoke test checks
+
+---
+
+## ✅ Production Smoke Test
+
+The production smoke test validates the full stack:
+
 ```bash
-curl -sI http://localhost/api/health/
+make smoke-prod
 ```
 
-## Performance
+It checks:
 
-The API is optimized **and regression-tested** for performance:
+- Container health
+- Nginx health
+- Backend health
+- Frontend HTML
+- OpenAPI docs
+- Auth flow
+- JWT login and refresh
+- Song upload
+- Song retrieval
+- Song streaming
+- HTTP Range requests
+- MinIO internal health
+- Security headers
+- Environment/secrets setup
+- Rate limiting
+- Feed performance
+- Gzip compression
 
-- **No N+1 queries** — `select_related` on all querysets, enforced by
-  `assertNumQueries`-style tests in CI
-- **3 composite DB indexes** matching real query patterns
-- **Redis caching** with event-based invalidation (feed + public profiles)
-- **Pagination** (20/page) and **gzip compression** (nginx)
+Documentation:
 
-See [`docs/performance.md`](docs/performance.md) for details.
+👉 [`docs/smoke-tests.md`](./docs/smoke-tests.md)
+
+---
+
+## 🧰 Useful Make Commands
 
 ```bash
-uv run pytest music/tests/test_performance.py -v
+make help
 ```
 
-## MinIO security note
+Common commands:
 
-Port 9000 (S3 API): internal-only; the frontend reaches media exclusively through nginx at /music-media/.
-Port 9001 (admin console): intentionally not exposed in production.
-See docs/env-management.md for the full guide.
+| Command | Purpose |
+|---|---|
+| `make dev-up-d` | Start dev stack in background |
+| `make dev-down` | Stop dev stack |
+| `make dev-logs` | Follow all dev logs |
+| `make dev-migrate` | Run dev migrations |
+| `make dev-test-cov` | Run backend tests with coverage in dev |
+| `make prod-up` | Start production-like stack |
+| `make prod-down` | Stop production-like stack |
+| `make prod-logs` | Follow production logs |
+| `make prod-check` | Run Django production checks |
+| `make check-env` | Validate `.env.prod` |
+| `make secrets` | Generate production secrets |
+| `make smoke-prod` | Run production smoke test |
+| `make test-backend-cov` | Run local backend coverage tests |
+| `make test-backend-perf` | Run backend performance tests |
+| `make schema-freeze` | Regenerate frozen OpenAPI schema |
+| `make schema-check` | Check live schema against frozen schema |
 
+---
 
-## 📔 Development Journal
+## 📖 Documentation
 
-For day-by-day implementation details, see [`docs/JOURNAL.md`](docs/JOURNAL.md).
+| Document | Purpose |
+|---|---|
+| [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | System diagrams and architecture decisions |
+| [`docs/env-management.md`](./docs/env-management.md) | Environment variables and secrets |
+| [`docs/security.md`](./docs/security.md) | Security pass documentation |
+| [`docs/performance.md`](./docs/performance.md) | Performance pass documentation |
+| [`docs/smoke-tests.md`](./docs/smoke-tests.md) | Production smoke test documentation |
+| [`docs/JOURNAL.md`](./docs/JOURNAL.md) | Day-by-day project journal |
+| [`backend/README.md`](./backend/README.md) | Backend developer guide |
+| [`frontend/README.md`](./frontend/README.md) | Frontend developer guide |
+| [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Contribution workflow |
 
-## 📄 License
+---
 
-MIT
+## 🧭 Roadmap
+
+### Completed
+
+- [x] Phase 1 — Backend Foundation
+- [x] Phase 2 — Backend Hardening
+- [x] Phase 3 — Frontend
+- [x] Phase 4 — Integration & Production
+
+### Next
+
+- [ ] Day 38 — VPS setup
+- [ ] Day 39 — Manual VPS deploy
+- [ ] Day 40 — Domain + HTTPS with Let's Encrypt
+- [ ] Day 41 — CI/CD auto-deploy to VPS
+- [ ] Day 42 — Monitoring and logging basics
+- [ ] Day 43 — Database and media backups
+- [ ] Day 44 — AWS/cloud migration intro
+- [ ] Day 45 — Final demo prep and interview walkthrough
+
+---
+
+## 🧑‍💻 Interview Talking Points
+
+This project demonstrates:
+
+- Building a production-style REST API with Django and DRF
+- Designing a versioned API contract
+- Implementing JWT auth for an SPA
+- Handling media upload and streaming
+- Using object storage instead of container-local media storage
+- Running async background jobs with Celery
+- Using Redis for both caching and as a broker
+- Optimizing a read-heavy feed
+- Writing backend and frontend automated tests
+- Using Docker Compose for reproducible environments
+- Hardening production configuration
+- Adding smoke tests for deployment confidence
+- Documenting architecture and engineering decisions
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License.
+
+See:
+
+👉 [`LICENSE`](./LICENSE)
