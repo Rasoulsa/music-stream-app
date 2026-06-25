@@ -2,18 +2,14 @@ name: Frontend CI
 
 on:
   push:
-    branches: [main]
-    paths:
-      - "frontend/**"
-      - "!frontend/README.md"
-      - ".github/workflows/frontend-ci.yml"
+    branches:
+      - "**"
 
   pull_request:
-    branches: [main]
-    paths:
-      - "frontend/**"
-      - "!frontend/README.md"
-      - ".github/workflows/frontend-ci.yml"
+    branches:
+      - main
+
+  workflow_dispatch:
 
 # Cancel in-progress runs on the same ref when a new push arrives.
 concurrency:
