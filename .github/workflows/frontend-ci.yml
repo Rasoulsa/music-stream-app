@@ -1,15 +1,18 @@
 name: Frontend CI
 
-# Run on pushes/PRs that touch the frontend or this workflow.
 on:
   push:
     branches: [main]
     paths:
       - "frontend/**"
+      - "!frontend/README.md"
       - ".github/workflows/frontend-ci.yml"
+
   pull_request:
+    branches: [main]
     paths:
       - "frontend/**"
+      - "!frontend/README.md"
       - ".github/workflows/frontend-ci.yml"
 
 # Cancel in-progress runs on the same ref when a new push arrives.

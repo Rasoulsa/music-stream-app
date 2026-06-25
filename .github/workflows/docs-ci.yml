@@ -1,0 +1,61 @@
+name: Docs CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "README.md"
+      - "docs/**"
+      - "backend/README.md"
+      - "frontend/README.md"
+      - ".github/workflows/docs-ci.yml"
+
+  push:
+    branches: [main]
+    paths:
+      - "README.md"
+      - "docs/**"
+      - "backend/README.md"
+      - "frontend/README.md"
+      - ".github/workflows/docs-ci.yml"
+
+concurrency:
+  group: docs-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs-check:
+    name: Check documentation files
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Confirm documentation files exist
+        run: |
+          test -f README.md
+          test -f docs/ARCHITECTURE.md
+          test -f docs/env-management.md
+          test -f docs/security.md
+          test -f docs/performance.md
+          test -f docs/smoke-tests.md
+          test -f backend/README.md
+          test -f frontend/README.md
+
+      - name: Check important README links
+        run: |
+          grep -q "docs/ARCHITECTURE.md" README.md
+          grep -q "docs/env-management.md" README.md
+          grep -q "docs/security.md" README.md
+          grep -q "docs/performance.md" README.md
+          grep -q "docs/smoke-tests.md" README.md
+          grep -q "backend/README.md" README.md
+          grep -q "frontend/README.md" README.md
+
+      - name: Check architecture document links
+        run: |
+          grep -q "env-management.md" docs/ARCHITECTURE.md
+          grep -q "security.md" docs/ARCHITECTURE.md
+          grep -q "performance.md" docs/ARCHITECTURE.md
+          grep -q "smoke-tests.md" docs/ARCHITECTURE.md

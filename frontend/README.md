@@ -121,9 +121,11 @@ frontend/
 
 ## Environment Variables
 
-Create a frontend environment file from the example:
+If you run the frontend locally with `npm run dev`, create a frontend
+environment file:
 
 ```bash
+cd frontend
 cp .env.example .env
 ```
 
@@ -135,13 +137,17 @@ Example:
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
-For Docker-based local development, the API URL may be routed through Nginx or
-the backend service depending on the compose file.
+If you run the full app with Docker Compose from the project root, the
+development stack mainly uses the root `.env.dev` file:
 
-Check:
+```bash
+cp .env.dev.example .env.dev
+```
 
-```text
-frontend/.env.example
+For production-like Docker runs, the stack uses:
+
+```bash
+cp .env.prod.example .env.prod
 ```
 
 ---
@@ -187,7 +193,7 @@ npm run dev
 The Vite dev server usually runs at:
 
 ```text
-http://localhost:5173
+http://localhost:3000
 ```
 
 If another port is configured or already in use, Vite will show the correct URL

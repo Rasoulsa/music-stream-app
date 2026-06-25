@@ -1,7 +1,8 @@
 # 🎵 Music Stream App
 
-![Backend CI](https://github.com/Rasoulsa/music-stream-app/actions/workflows/ci.yml/badge.svg)
+![Backend CI](https://github.com/Rasoulsa/music-stream-app/actions/workflows/backend-ci.yml/badge.svg)
 ![Frontend CI](https://github.com/Rasoulsa/music-stream-app/actions/workflows/frontend-ci.yml/badge.svg)
+![Docs CI](https://github.com/Rasoulsa/music-stream-app/actions/workflows/docs-ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/Python-3.13-blue)
 ![Django](https://img.shields.io/badge/Django-5.1-green)
 ![React](https://img.shields.io/badge/React-TypeScript-61DAFB)
@@ -253,9 +254,24 @@ cd music-stream-app
 
 ### 2. Create local environment files
 
+The Docker development stack uses `.env.dev`.
+
+```bash
+cp .env.dev.example .env.dev
+```
+
+Optional: if you also want a generic local `.env` file, create it from the
+example:
+
 ```bash
 cp .env.example .env
-cp .env.dev.example .env.dev
+```
+
+Optional: if you want to run the frontend directly with `npm run dev`, create a
+frontend env file too:
+
+```bash
+cp frontend/.env.example frontend/.env
 ```
 
 Edit the files if needed.
@@ -297,6 +313,8 @@ Depending on your Docker Compose port configuration:
 The production-like stack runs behind Nginx and uses production settings.
 
 ### 1. Prepare production env
+
+The production-like Docker stack uses `.env.prod`.
 
 ```bash
 cp .env.prod.example .env.prod
