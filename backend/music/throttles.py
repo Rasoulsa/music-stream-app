@@ -1,21 +1,34 @@
-"""Custom rate-limit throttles (security pass)."""
+"""
+Custom API throttles.
 
-from rest_framework.throttling import ScopedRateThrottle
+DRF throttling uses Django's cache backend. In production we use Redis,
+so throttle counters are shared across Gunicorn workers/containers.
+"""
+
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 
 
-class LoginRateThrottle(ScopedRateThrottle):
-    """Brute-force protection for the JWT login endpoint."""
+class LoginRateThrottle(AnonRateThrottle):
+    """
+    Throttle anonymous login attempts by client IP.
+
+    Scope name must match REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["login"].
+    """
 
     scope = "login"
 
 
-class RegisterRateThrottle(ScopedRateThrottle):
-    """Abuse protection for account registration."""
+class RegisterRateThrottle(AnonRateThrottle):
+    """
+    Throttle anonymous registration attempts by client IP.
+    """
 
-    scope = "login"  # reuse the strict login bucket for signups
+    scope = "register"
 
 
-class UploadRateThrottle(ScopedRateThrottle):
-    """Abuse/DoS protection for expensive file uploads."""
+class UploadRateThrottle(UserRateThrottle):
+    """
+    Throttle authenticated song uploads by user id.
+    """
 
     scope = "upload"

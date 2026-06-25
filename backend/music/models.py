@@ -79,6 +79,24 @@ class Song(models.Model):
         ordering = ["-created_at"]
         verbose_name = "Song"
         verbose_name_plural = "Songs"
+        indexes = [
+            # Public feed: WHERE is_public=True ORDER BY -created_at
+            # One index satisfies both the filter AND the sort.
+            models.Index(
+                fields=["is_public", "-created_at"],
+                name="song_public_recent_idx",
+            ),
+            # "My songs" / user public songs: WHERE owner=? ORDER BY -created_at
+            models.Index(
+                fields=["owner", "-created_at"],
+                name="song_owner_recent_idx",
+            ),
+            # SongViewSet authenticated queryset: owner + visibility combo
+            models.Index(
+                fields=["owner", "is_public"],
+                name="song_owner_public_idx",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.title} — {self.artist}"

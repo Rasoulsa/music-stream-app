@@ -45,3 +45,29 @@ else:
             "NAME": BASE_DIR / "db.sqlite3",  # noqa: F405
         }
     }
+
+# -----------------------------------------------------------------------------
+# Django Debug Toolbar — local profiling only
+# -----------------------------------------------------------------------------
+if DEBUG:
+    try:
+        import debug_toolbar  # noqa: F401
+
+        INSTALLED_APPS += ["debug_toolbar"]
+        MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
+        INTERNAL_IPS = ["127.0.0.1", "localhost"]
+
+        # Docker: resolve container IP so the toolbar renders inside the network.
+        # On some local macOS setups, socket.gethostname() cannot be resolved;
+        # debug toolbar should never break Django startup, so this is best-effort.
+        import socket
+
+        try:
+            _hostname, _, _ips = socket.gethostbyname_ex(socket.gethostname())
+            INTERNAL_IPS += [ip.rsplit(".", 1)[0] + ".1" for ip in _ips if "." in ip]
+        except socket.gaierror:
+            pass
+
+        DEBUG_TOOLBAR_CONFIG = {"SHOW_TOOLBAR_CALLBACK": lambda request: True}
+    except ImportError:
+        pass

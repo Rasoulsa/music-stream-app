@@ -283,6 +283,22 @@ Verify headers:
 curl -sI http://localhost/api/health/
 ```
 
+## Performance
+
+The API is optimized **and regression-tested** for performance:
+
+- **No N+1 queries** — `select_related` on all querysets, enforced by
+  `assertNumQueries`-style tests in CI
+- **3 composite DB indexes** matching real query patterns
+- **Redis caching** with event-based invalidation (feed + public profiles)
+- **Pagination** (20/page) and **gzip compression** (nginx)
+
+See [`docs/performance.md`](docs/performance.md) for details.
+
+```bash
+uv run pytest music/tests/test_performance.py -v
+```
+
 ## MinIO security note
 
 Port 9000 (S3 API): internal-only; the frontend reaches media exclusively through nginx at /music-media/.

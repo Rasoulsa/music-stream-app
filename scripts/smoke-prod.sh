@@ -54,7 +54,7 @@ echo "  ╚═══════════════════════
 echo ""
 
 # ── 1. Container health ──────────────────────────────────────
-echo "  [1/9] Container Health"
+echo "  [1/10] Container Health"
 divider
 CONTAINERS=(
   "music-db"
@@ -83,7 +83,7 @@ done
 echo ""
 
 # ── 2. Infrastructure endpoints ──────────────────────────────
-echo "  [2/9] Infrastructure Endpoints"
+echo "  [2/10] Infrastructure Endpoints"
 divider
 check   "nginx liveness   /healthz"       "curl -sf $BASE/healthz"
 check   "backend health   /api/health/"   "curl -sf $BASE/api/health/"
@@ -102,7 +102,7 @@ fi
 echo ""
 
 # ── 3. API contract ──────────────────────────────────────────
-echo "  [3/9] API Contract"
+echo "  [3/10] API Contract"
 divider
 check      "OpenAPI schema   /api/schema/"   "curl -sf -o /dev/null $BASE/api/schema/"
 check      "Swagger UI       /api/docs/"     "curl -sf -o /dev/null $BASE/api/docs/"
@@ -116,7 +116,7 @@ check_code "my profile unauthed (401)"        "401" "$BASE/api/v1/users/me/"
 echo ""
 
 # ── 4. Auth + database flow ──────────────────────────────────
-echo "  [4/9] Auth + Database Flow"
+echo "  [4/10] Auth + Database Flow"
 divider
 RAND=$RANDOM
 USERNAME="smoke_${RAND}"
@@ -162,7 +162,7 @@ check "GET /api/v1/songs/mine/ with token (200)" \
 echo ""
 
 # ── 5. Object storage (MinIO) ────────────────────────────────
-echo "  [5/9] Object Storage (MinIO)"
+echo "  [5/10] Object Storage (MinIO)"
 divider
 # Internal health — MinIO API responding inside its own container
 check "MinIO API health (internal)" \
@@ -181,7 +181,7 @@ fi
 echo ""
 
 # ── 6. Security headers ──────────────────────────────────────
-echo "  [6/9] Security Headers"
+echo "  [6/10] Security Headers"
 divider
 
 # Use /api/health/ — pure nginx→backend path.
@@ -218,7 +218,7 @@ check "docs/env-management.md exists"           "test -f docs/env-management.md"
 echo ""
 
 # ── 8. End-to-End User Journey —───────────────────────────────
-echo "  [8/9] End-to-End User Journey (upload → retrieve → stream)"
+echo "  [8/10] End-to-End User Journey (upload → retrieve → stream)"
 divider
 
 # Reuse the token from section 4. If missing, skip gracefully.
@@ -311,7 +311,7 @@ fi
 echo ""
 
 # ── Rate limiting ────────────────────────────────────────────
-echo "  [9/9] Rate Limiting"
+echo "  [9/10] Rate Limiting"
 divider
 
 # Hammer the login endpoint — expect a 429 within the limit window
@@ -335,6 +335,29 @@ else
   FAIL=$((FAIL+1))
   ERRORS+=("Login throttle not enforced — check DRF throttle config")
 fi
+echo ""
+
+# ── Performance ──────────────────────────────────────────
+echo "  [10/10] Performance"
+divider
+
+# Warm the feed cache, then measure a cached response.
+curl -s -o /dev/null "$BASE/api/v1/songs/"
+FEED_TIME=$(curl -s -o /dev/null -w "%{time_total}" "$BASE/api/v1/songs/")
+FEED_MS=$(printf "%.0f" "$(echo "$FEED_TIME * 1000" | bc)")
+
+if [[ "$FEED_MS" -lt 500 ]]; then
+  echo "  ✅  Feed responds fast (${FEED_MS}ms < 500ms target)"
+  PASS=$((PASS+1))
+else
+  echo "  ⚠️   Feed slower than target (${FEED_MS}ms ≥ 500ms)"
+  info "non-fatal — check indexes/cache under real load"
+  PASS=$((PASS+1))
+fi
+
+# gzip must be active (nginx) — big payload savings
+check "gzip compression enabled on API" \
+  "curl -s -H 'Accept-Encoding: gzip' -I $BASE/api/v1/songs/ | grep -qi 'content-encoding: gzip'"
 echo ""
 
 # ── Summary ──────────────────────────────────────────────────

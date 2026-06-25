@@ -58,4 +58,11 @@ urlpatterns = [
 # Serve uploaded media files
 # NOTE: In production with nginx, nginx serves /media/ directly.
 # For local Docker testing over HTTP, Django/Gunicorn handles it here.
+if settings.DEBUG:  # pragma: no cover
+    try:
+        import debug_toolbar
+
+        urlpatterns += [path("__debug__/", include(debug_toolbar.urls))]
+    except ImportError:
+        pass
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

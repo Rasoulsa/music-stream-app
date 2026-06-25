@@ -24,6 +24,8 @@
 #   make test-backend-cov Run backend pytest locally with coverage
 #   make test-db-down    Stop disposable local PostgreSQL test DB
 #
+#   make test-backend-perf Run backend performance tests only
+#
 #   make secrets         Generate strong secrets for .env.prod
 #   make check-env       Validate .env.prod before deploying
 #
@@ -273,6 +275,16 @@ test-backend-cov:	## Run backend pytest with coverage locally against disposable
 	POSTGRES_USER=musicuser \
 	POSTGRES_PASSWORD=musicuser123 \
 	uv run pytest -v --ds=config.settings.ci --cov-report=term-missing --create-db
+
+.PHONY: test-backend-perf
+test-backend-perf: ## Run backend performance tests only
+	cd backend && \
+	POSTGRES_HOST=localhost \
+	POSTGRES_PORT=5433 \
+	POSTGRES_DB=musicdb \
+	POSTGRES_USER=musicuser \
+	POSTGRES_PASSWORD=musicuser123 \
+	uv run pytest music/tests/test_performance.py -v --ds=config.settings.ci --create-db --no-cov
 
 .PHONY: prod-restart
 prod-restart:		## Restart prod stack safely without deleting volumes
