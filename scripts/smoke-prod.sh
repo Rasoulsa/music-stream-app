@@ -49,7 +49,7 @@ divider() { echo "  ────────────────────
 
 echo ""
 echo "  ╔═══════════════════════════════════════════╗"
-echo "  ║        Production E2E Smoke Test          ║"
+echo "  ║    Music Stream App — Production Smoke    ║"
 echo "  ╚═══════════════════════════════════════════╝"
 echo ""
 
@@ -356,7 +356,7 @@ if [[ "$FAIL" -gt 0 ]]; then
   echo ""
   exit 1
 else
-  echo "  🎉 All checks passed — E2E smoke test complete!"
+  echo "  🎉 All checks passed —  Music Stream App Production Smoke  complete!"
   echo ""
   exit 0
 fi
