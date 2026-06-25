@@ -1,17 +1,32 @@
-name: CI
+name: Backend CI
 
 on:
   push:
     branches: [main]
+    paths:
+      - "backend/**"
+      - "!backend/README.md"
+      - ".github/workflows/backend-ci.yml"
+
   pull_request:
     branches: [main]
+    paths:
+      - "backend/**"
+      - "!backend/README.md"
+      - ".github/workflows/backend-ci.yml"
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -54,6 +69,7 @@ jobs:
     env:
       DJANGO_SETTINGS_MODULE: config.settings.ci
       SECRET_KEY: ci-insecure-test-key
+      DJANGO_SECRET_KEY: ci-insecure-test-key
       POSTGRES_DB: test_db
       POSTGRES_USER: test_user
       POSTGRES_PASSWORD: test_pass
@@ -61,7 +77,8 @@ jobs:
       POSTGRES_PORT: 5432
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
