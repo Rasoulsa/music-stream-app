@@ -54,7 +54,7 @@ echo "  ╚═══════════════════════
 echo ""
 
 # ── 1. Container health ──────────────────────────────────────
-echo "  [1/8] Container Health"
+echo "  [1/9] Container Health"
 divider
 CONTAINERS=(
   "music-db"
@@ -83,7 +83,7 @@ done
 echo ""
 
 # ── 2. Infrastructure endpoints ──────────────────────────────
-echo "  [2/8] Infrastructure Endpoints"
+echo "  [2/9] Infrastructure Endpoints"
 divider
 check   "nginx liveness   /healthz"       "curl -sf $BASE/healthz"
 check   "backend health   /api/health/"   "curl -sf $BASE/api/health/"
@@ -102,7 +102,7 @@ fi
 echo ""
 
 # ── 3. API contract ──────────────────────────────────────────
-echo "  [3/8] API Contract"
+echo "  [3/9] API Contract"
 divider
 check      "OpenAPI schema   /api/schema/"   "curl -sf -o /dev/null $BASE/api/schema/"
 check      "Swagger UI       /api/docs/"     "curl -sf -o /dev/null $BASE/api/docs/"
@@ -116,7 +116,7 @@ check_code "my profile unauthed (401)"        "401" "$BASE/api/v1/users/me/"
 echo ""
 
 # ── 4. Auth + database flow ──────────────────────────────────
-echo "  [4/8] Auth + Database Flow"
+echo "  [4/9] Auth + Database Flow"
 divider
 RAND=$RANDOM
 USERNAME="smoke_${RAND}"
@@ -162,7 +162,7 @@ check "GET /api/v1/songs/mine/ with token (200)" \
 echo ""
 
 # ── 5. Object storage (MinIO) ────────────────────────────────
-echo "  [5/8] Object Storage (MinIO)"
+echo "  [5/9] Object Storage (MinIO)"
 divider
 # Internal health — MinIO API responding inside its own container
 check "MinIO API health (internal)" \
@@ -181,13 +181,20 @@ fi
 echo ""
 
 # ── 6. Security headers ──────────────────────────────────────
-echo "  [6/8] Security Headers"
+echo "  [6/9] Security Headers"
 divider
-HEADERS=$(curl -sI "$BASE/")
+
+# Use /api/health/ — pure nginx→backend path.
+# The /api/ location block has no add_header of its own, so
+# server-level security headers are guaranteed to apply here.
+# Checking / (frontend proxy) is fragile — frontend container
+# could strip or override headers unpredictably.
+HEADERS=$(curl -sI "$BASE/api/health/")
+
 check "X-Content-Type-Options: nosniff" \
   "echo '$HEADERS' | grep -qi 'x-content-type-options: nosniff'"
-check "X-Frame-Options set" \
-  "echo '$HEADERS' | grep -qi 'x-frame-options'"
+check "X-Frame-Options: DENY" \
+  "echo '$HEADERS' | grep -qi 'x-frame-options: deny'"
 check "Referrer-Policy set" \
   "echo '$HEADERS' | grep -qi 'referrer-policy'"
 check "nginx version hidden" \
@@ -195,7 +202,7 @@ check "nginx version hidden" \
 echo ""
 
 # ── 7. Environment & secrets ──────────────────────────────────
-echo "  [7/8] Environment & Secrets"
+echo "  [7/9] Environment & Secrets"
 divider
 check ".env.prod        exists and non-empty"   "test -s .env.prod"
 check ".env.prod        git-ignored"            "git check-ignore -q .env.prod"
@@ -211,7 +218,7 @@ check "docs/env-management.md exists"           "test -f docs/env-management.md"
 echo ""
 
 # ── 8. End-to-End User Journey —───────────────────────────────
-echo "  [8/8] End-to-End User Journey (upload → retrieve → stream)"
+echo "  [8/9] End-to-End User Journey (upload → retrieve → stream)"
 divider
 
 # Reuse the token from section 4. If missing, skip gracefully.
@@ -300,6 +307,33 @@ else
   fi
 
   rm -f "$E2E_AUDIO" 2>/dev/null
+fi
+echo ""
+
+# ── Rate limiting ────────────────────────────────────────────
+echo "  [9/9] Rate Limiting"
+divider
+
+# Hammer the login endpoint — expect a 429 within the limit window
+RATE_HIT=0
+for i in $(seq 1 12); do
+  CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+    -X POST "$BASE/api/v1/auth/login/" \
+    -H "Content-Type: application/json" \
+    -d '{"username":"bogus","password":"bogus"}')
+  if [[ "$CODE" == "429" ]]; then
+    RATE_HIT=1
+    break
+  fi
+done
+
+if [[ "$RATE_HIT" == "1" ]]; then
+  echo "  ✅  Login endpoint rate-limited (429 after burst)"
+  PASS=$((PASS+1))
+else
+  echo "  ❌  Login endpoint NOT rate-limited (no 429 in 10 requests)"
+  FAIL=$((FAIL+1))
+  ERRORS+=("Login throttle not enforced — check DRF throttle config")
 fi
 echo ""
 

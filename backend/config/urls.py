@@ -15,12 +15,9 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-)
+from rest_framework_simplejwt.views import TokenRefreshView
 
-from music.views import RegisterView, health_check
+from music.views import RegisterView, ThrottledTokenObtainPairView, health_check
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -34,7 +31,7 @@ urlpatterns = [
     ),
     path(
         "api/v1/auth/login/",
-        TokenObtainPairView.as_view(),
+        ThrottledTokenObtainPairView.as_view(),
         name="token-obtain-pair",
     ),
     path(
