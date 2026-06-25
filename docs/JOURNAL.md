@@ -1003,3 +1003,20 @@ docker run --rm -v "$(pwd)/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
 make prod-up
 curl -s http://localhost/healthz    # → ok
 ```
+
+## Day 37 — Documentation Polish
+
+**Goal:** Make the project interview-ready with accurate, polished docs.
+
+- Created `docs/ARCHITECTURE.md` with Mermaid diagrams:
+  system overview, auth flow, upload/stream flow, feed caching, ER model,
+  and deployment topology — plus a design-decisions table.
+- Finalized root `README.md`: fixed stale feature checklist (frontend done),
+  added quickstart (dev + prod), API table, project structure, docs map,
+  and an embedded architecture diagram.
+- Enhanced `backend/README.md`: settings modules, Docker/Make workflow,
+  testing + coverage, schema freeze/check, key files.
+- Polished `frontend/README.md`: clean single-source doc with scripts,
+  structure, and feature list.
+- Verified all docs reflect the **actual** routes (`config/urls.py`,
+  `music/urls.py`) and Makefile targets — no fictional commands.
