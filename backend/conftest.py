@@ -5,6 +5,7 @@ Pytest configuration shared across all tests.
 import tempfile
 
 import pytest
+from django.core.cache import cache
 
 
 @pytest.fixture(autouse=True)
@@ -27,3 +28,17 @@ def celery_eager(settings):
     """
     settings.CELERY_TASK_ALWAYS_EAGER = True
     settings.CELERY_TASK_EAGER_PROPAGATES = True
+
+
+@pytest.fixture(autouse=True)
+def clear_cache_between_tests():
+    """
+    Keep tests isolated from Django cache state.
+
+    CI/test settings use LocMemCache, which persists for the whole pytest
+    process. Without clearing it, cached profile/feed responses from one test
+    can leak into another test and produce order-dependent failures.
+    """
+    cache.clear()
+    yield
+    cache.clear()

@@ -4,7 +4,9 @@ from .base import *  # noqa: F403
 
 DEBUG = False
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "ci-insecure-test-key")
+SECRET_KEY = os.environ.get(
+    "SECRET_KEY", "ci-insecure-test-key-for-automated-tests-only-not-for-production"
+)
 
 ALLOWED_HOSTS = ["*"]
 
@@ -29,4 +31,19 @@ PASSWORD_HASHERS = [
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
+
+# -------------------------------------------------------------------------
+# Cache
+# -------------------------------------------------------------------------
+# Use in-process local-memory cache in CI/tests.
+#
+# This avoids requiring Redis during pytest runs on the host machine.
+# The app cache logic is still tested because LocMemCache supports the
+# same get/set/delete API used by the views and signals.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "test-cache",
+    }
 }

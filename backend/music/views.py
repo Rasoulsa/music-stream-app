@@ -202,6 +202,8 @@ class MyProfileView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        # Invalidate the public-profile cache so edits show immediately.
+        cache.delete(f"profile:public:{request.user.username}")
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -217,7 +219,17 @@ class PublicProfileView(generics.RetrieveAPIView):
     serializer_class = PublicProfileSerializer
 
     def get_object(self):
-        user = get_object_or_404(User, username=self.kwargs["username"])
+        username = self.kwargs["username"]
+        cache_key = f"profile:public:{username}"
+
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        user = get_object_or_404(
+            User.objects.select_related("profile"), username=username
+        )
+        cache.set(cache_key, user.profile, timeout=300)  # 5 min
         return user.profile
 
 
