@@ -643,3 +643,5 @@ This project is licensed under the MIT License.
 See:
 
 👉 [`LICENSE`](./LICENSE)
+
+> CI/CD is configured with GitHub Actions for backend, frontend, and documentation checks.
