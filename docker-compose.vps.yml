@@ -1,0 +1,27 @@
+# docker-compose.vps.yml
+#
+# VPS production override.
+#
+# IMPORTANT — PORT STRATEGY:
+#   I:  App Nginx binds host port 80 only.
+#         Port 443 is used by an existing service ("X Service") on this VPS.
+#         We MUST NOT bind 443 here or the deploy will fail.
+#   II: We will introduce HAProxy as an SNI splitter on :443.
+#         At that point, App Nginx will bind 127.0.0.1:8444 instead,
+#         controlled purely by the NGINX_HTTP_BIND env var below —
+#         no structural change to this file's services.
+#
+# Usage:
+#   docker compose \
+#     -f docker-compose.prod.yml \
+#     -f docker-compose.vps.yml \
+#     --env-file .env.prod \
+#     up -d --build
+
+services:
+  nginx:
+    ports:
+      # I: NGINX_HTTP_BIND not set → binds 0.0.0.0:80
+      # II: set NGINX_HTTP_BIND=127.0.0.1:8444 in .env.prod
+      #     HAProxy then fronts :443 and routes SNI to this port.
+      - "${NGINX_HTTP_BIND:-0.0.0.0:80}:80"
