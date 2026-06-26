@@ -31,20 +31,36 @@
 #
 #   make smoke-prod      Run end-to-end smoke tests against prod stack
 #   make prod-restart    Restart prod stack safely without deleting volumes
-#   make clean           Stop dev stack + wipe ALL volumes (fresh start)
-#   make clean-prod      Stop prod stack + wipe ALL volumes
+#   make clean           Stop dev stack + wipe dev project volumes
+#   make clean-prod      Stop prod stack + wipe prod project volumes
 #   make help            Show this help message
 #
 # =============================================================================
 
 # -----------------------------------------------------------------------------
 # Compose command aliases
-# --env-file  → tells Compose which file to use for ${VAR} interpolation
-# -f base     → shared services
-# -f override → environment-specific settings
+# --project-name → isolates dev/prod Compose projects
+# --env-file     → tells Compose which file to use for ${VAR} interpolation
+# -f base        → shared services
+# -f override    → environment-specific settings
 # -----------------------------------------------------------------------------
-DEV  = docker compose --env-file .env.dev  -f docker-compose.yml -f docker-compose.dev.yml
-PROD = docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml
+#
+# Separate project names prevent dev/prod from accidentally sharing:
+#   - Docker networks
+#   - Compose-managed volumes
+#   - generated container names, if container_name is not hardcoded
+#
+# NOTE:
+#   This greatly reduces DB password/volume conflicts.
+#   To run dev and prod-like stacks at the same time, Compose files must also:
+#     1. avoid fixed container_name values
+#     2. avoid duplicate host port bindings
+# -----------------------------------------------------------------------------
+DEV_PROJECT  ?= music-stream-dev
+PROD_PROJECT ?= music-stream-prod
+
+DEV  = docker compose --project-name $(DEV_PROJECT)  --env-file .env.dev  -f docker-compose.yml -f docker-compose.dev.yml
+PROD = docker compose --project-name $(PROD_PROJECT) --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml
 
 # -----------------------------------------------------------------------------
 # Default target — running just `make` shows help
@@ -65,6 +81,10 @@ dev-up-d:		## Build and start dev stack (detached/background)
 .PHONY: dev-ps
 dev-ps:			## Show status of all dev services
 	$(DEV) ps
+
+.PHONY: dev-config
+dev-config:		## Render final dev Compose config
+	$(DEV) config
 
 .PHONY: dev-down
 dev-down:		## Stop dev stack (keeps volumes)
@@ -164,6 +184,10 @@ prod-logs-frontend:	## Follow logs for frontend only (prod)
 prod-ps:		## Show status of all prod services
 	$(PROD) ps
 
+.PHONY: prod-config
+prod-config:		## Render final prod Compose config
+	$(PROD) config
+
 .PHONY: prod-shell
 prod-shell:		## Open bash shell inside backend container (prod)
 	$(PROD) exec backend /bin/bash
@@ -192,6 +216,15 @@ prod-collectstatic:	## Run collectstatic manually (prod)
 prod-check:		## Run Django system checks in prod container
 	$(PROD) exec backend /app/.venv/bin/python manage.py check --deploy
 
+.PHONY: prod-restart
+prod-restart:		## Restart prod stack safely without deleting volumes
+	$(PROD) down
+	$(PROD) up --build -d --remove-orphans
+
+.PHONY: smoke-prod
+smoke-prod:		## Run end-to-end smoke test against running prod stack
+	@./scripts/smoke-prod.sh
+
 # -----------------------------------------------------------------------------
 # Secrets & environment
 # -----------------------------------------------------------------------------
@@ -204,15 +237,22 @@ check-env:		## Validate .env.prod before deploying
 	@./scripts/check-env.sh
 
 # -----------------------------------------------------------------------------
+# Compose diagnostics
+# -----------------------------------------------------------------------------
+.PHONY: compose-ls
+compose-ls:		## List Docker Compose projects
+	docker compose ls
+
+# -----------------------------------------------------------------------------
 # Cleanup
 # -----------------------------------------------------------------------------
 .PHONY: clean
-clean:			## Stop dev stack and wipe ALL volumes (full fresh start)
+clean:			## Stop dev stack and wipe dev project volumes
 	$(DEV) down -v --remove-orphans
 
 .PHONY: clean-prod
-clean-prod:		## DANGER: Stop prod stack and DELETE prod database/media volumes
-	@echo "⚠️  WARNING: This will DELETE production database/media volumes."
+clean-prod:		## DANGER: Stop prod stack and DELETE prod project database/media volumes
+	@echo "⚠️  WARNING: This will DELETE prod project database/media volumes."
 	@echo "⚠️  Users, songs, uploaded files, and MinIO data may be removed."
 	@read -p "Type 'delete-prod-data' to continue: " confirm; \
 	if [ "$$confirm" = "delete-prod-data" ]; then \
@@ -277,7 +317,7 @@ test-backend-cov:	## Run backend pytest with coverage locally against disposable
 	uv run pytest -v --ds=config.settings.ci --cov-report=term-missing --create-db
 
 .PHONY: test-backend-perf
-test-backend-perf: ## Run backend performance tests only
+test-backend-perf:	## Run backend performance tests only
 	cd backend && \
 	POSTGRES_HOST=localhost \
 	POSTGRES_PORT=5433 \
@@ -285,12 +325,3 @@ test-backend-perf: ## Run backend performance tests only
 	POSTGRES_USER=musicuser \
 	POSTGRES_PASSWORD=musicuser123 \
 	uv run pytest music/tests/test_performance.py -v --ds=config.settings.ci --create-db --no-cov
-
-.PHONY: prod-restart
-prod-restart:		## Restart prod stack safely without deleting volumes
-	$(PROD) down
-	$(PROD) up --build -d --remove-orphans
-
-.PHONY: smoke-prod
-smoke-prod:		## Run end-to-end smoke test against running prod stack
-	@./scripts/smoke-prod.sh
