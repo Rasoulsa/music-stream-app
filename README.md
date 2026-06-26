@@ -20,7 +20,7 @@ storage, and deployment preparation.
 
 ## 🚧 Project Status
 
-🟢 **Phase 4 complete — Integration & Production finished.**
+🟡 **Phase 5 in progress — Deployment & Cloud.**
 
 Current roadmap position:
 
@@ -29,14 +29,14 @@ Phase 1: Backend Foundation        ✅ Done
 Phase 2: Backend Hardening         ✅ Done
 Phase 3: Frontend                  ✅ Done
 Phase 4: Integration & Production  ✅ Done
-Phase 5: Deployment & Cloud        ⏭️ Next
+Phase 5: Deployment & Cloud        🟡 In Progress
 ```
 
-Next phase:
+Phase 5 progress:
 
 ```text
-Day 38 → VPS setup
-Day 39 → Manual VPS deploy
+Day 38 → VPS setup                  ✅ Done
+Day 39 → Manual VPS deploy          ⏭️ Next
 Day 40 → Domain + HTTPS
 Day 41 → CI/CD auto-deploy
 Day 42 → Monitoring + logging
@@ -77,6 +77,7 @@ Day 45 → Final demo prep
 - [x] Security pass: CORS, headers, rate limiting
 - [x] Performance pass: query optimization and caching
 - [x] Documentation polish with architecture diagrams
+- [x] VPS setup preparation: server hardening, Docker, firewall
 - [ ] Live VPS deployment
 - [ ] Domain + HTTPS
 - [ ] Monitoring and backups
@@ -229,6 +230,7 @@ music-stream-app/
 │   └── smoke-prod.sh
 ├── docs/
 │   ├── ARCHITECTURE.md
+│   ├── deployment.md
 │   ├── env-management.md
 │   ├── performance.md
 │   ├── security.md
@@ -357,6 +359,28 @@ Expected result:
 ```text
 Results: 52 passed, 0 failed
 ```
+
+---
+
+## 🚢 Deployment
+
+See [`docs/deployment.md`](./docs/deployment.md) for VPS setup and deployment
+steps.
+
+Phase 5, Deployment & Cloud, is in progress:
+
+- ✅ Day 38 — VPS setup: server hardening, Docker, firewall
+- ⏭️ Day 39 — Manual VPS deploy
+- ⬜ Day 40 — Domain + HTTPS with Let's Encrypt
+- ⬜ Day 41 — CI/CD auto-deploy to VPS
+- ⬜ Day 42 — Monitoring and logging basics
+- ⬜ Day 43 — Database and media backups
+- ⬜ Day 44 — AWS/cloud migration intro
+- ⬜ Day 45 — Final demo prep and interview walkthrough
+
+The deployment plan starts with a VPS-based production environment and later
+moves toward cloud deployment concepts such as managed storage, managed
+databases, monitoring, and automated delivery.
 
 ---
 
@@ -495,6 +519,7 @@ Implemented items include:
 - Registration/upload throttling
 - MinIO console not exposed in production
 - Production smoke test checks for headers and exposed ports
+- VPS setup preparation with firewall and server hardening
 
 ---
 
@@ -583,6 +608,7 @@ Common commands:
 | Document | Purpose |
 |---|---|
 | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | System diagrams and architecture decisions |
+| [`docs/deployment.md`](./docs/deployment.md) | VPS setup and deployment steps |
 | [`docs/env-management.md`](./docs/env-management.md) | Environment variables and secrets |
 | [`docs/security.md`](./docs/security.md) | Security pass documentation |
 | [`docs/performance.md`](./docs/performance.md) | Performance pass documentation |
@@ -602,10 +628,14 @@ Common commands:
 - [x] Phase 2 — Backend Hardening
 - [x] Phase 3 — Frontend
 - [x] Phase 4 — Integration & Production
+- [x] Day 38 — VPS setup: server hardening, Docker, firewall
+
+### In Progress
+
+- [ ] Phase 5 — Deployment & Cloud
 
 ### Next
 
-- [ ] Day 38 — VPS setup
 - [ ] Day 39 — Manual VPS deploy
 - [ ] Day 40 — Domain + HTTPS with Let's Encrypt
 - [ ] Day 41 — CI/CD auto-deploy to VPS
@@ -631,6 +661,7 @@ This project demonstrates:
 - Writing backend and frontend automated tests
 - Using Docker Compose for reproducible environments
 - Hardening production configuration
+- Preparing a VPS deployment environment
 - Adding smoke tests for deployment confidence
 - Documenting architecture and engineering decisions
 
