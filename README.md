@@ -36,8 +36,8 @@ Phase 5 progress:
 
 ```text
 Day 38 → VPS setup                  ✅ Done
-Day 39 → Manual VPS deploy          ⏭️ Next
-Day 40 → Domain + HTTPS
+Day 39 → Manual VPS deploy          ✅ Done
+Day 40 → Domain + HTTPS             ⏭️ Next
 Day 41 → CI/CD auto-deploy
 Day 42 → Monitoring + logging
 Day 43 → Backups
@@ -78,6 +78,7 @@ Day 45 → Final demo prep
 - [x] Performance pass: query optimization and caching
 - [x] Documentation polish with architecture diagrams
 - [x] VPS setup preparation: server hardening, Docker, firewall
+- [x] Manual VPS deployment (HTTP, port 80)
 - [ ] Live VPS deployment
 - [ ] Domain + HTTPS
 - [ ] Monitoring and backups
@@ -226,11 +227,13 @@ music-stream-app/
 │   └── nginx.conf
 ├── scripts/
 │   ├── check-env.sh
+│   ├── deploy.sh
 │   ├── generate-secrets.sh
+│   ├── server-setup.sh
 │   └── smoke-prod.sh
 ├── docs/
 │   ├── ARCHITECTURE.md
-│   ├── deployment.md
+│   ├── DEPLOYMENT.md
 │   ├── env-management.md
 │   ├── performance.md
 │   ├── security.md
@@ -239,6 +242,7 @@ music-stream-app/
 ├── docker-compose.yml
 ├── docker-compose.dev.yml
 ├── docker-compose.prod.yml
+├── docker-compose.vps.yml
 ├── Makefile
 └── README.md
 ```
@@ -370,8 +374,8 @@ steps.
 Phase 5, Deployment & Cloud, is in progress:
 
 - ✅ Day 38 — VPS setup: server hardening, Docker, firewall
-- ⏭️ Day 39 — Manual VPS deploy
-- ⬜ Day 40 — Domain + HTTPS with Let's Encrypt
+- ✅ Day 39 — Manual VPS deploy
+- ⏭️ Day 40 — Domain + HTTPS with Let's Encrypt
 - ⬜ Day 41 — CI/CD auto-deploy to VPS
 - ⬜ Day 42 — Monitoring and logging basics
 - ⬜ Day 43 — Database and media backups
@@ -629,6 +633,7 @@ Common commands:
 - [x] Phase 3 — Frontend
 - [x] Phase 4 — Integration & Production
 - [x] Day 38 — VPS setup: server hardening, Docker, firewall
+- [x] Day 39 — Manual VPS deploy (HTTP, port 80)
 
 ### In Progress
 
@@ -636,7 +641,6 @@ Common commands:
 
 ### Next
 
-- [ ] Day 39 — Manual VPS deploy
 - [ ] Day 40 — Domain + HTTPS with Let's Encrypt
 - [ ] Day 41 — CI/CD auto-deploy to VPS
 - [ ] Day 42 — Monitoring and logging basics
@@ -661,7 +665,8 @@ This project demonstrates:
 - Writing backend and frontend automated tests
 - Using Docker Compose for reproducible environments
 - Hardening production configuration
-- Preparing a VPS deployment environment
+- Deploying to a VPS with Docker Compose
+- Coexisting with an existing service on the same VPS without port conflicts
 - Adding smoke tests for deployment confidence
 - Documenting architecture and engineering decisions
 
