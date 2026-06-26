@@ -2,10 +2,14 @@
 Development settings.
 """
 
+import sys
+
 from .base import *  # noqa: F401,F403
 from .base import BASE_DIR, env  # noqa: F401
 
 DEBUG = True
+
+RUNNING_TESTS = "pytest" in sys.modules or any("pytest" in arg for arg in sys.argv)
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "backend"]
 
@@ -49,7 +53,7 @@ else:
 # -----------------------------------------------------------------------------
 # Django Debug Toolbar — local profiling only
 # -----------------------------------------------------------------------------
-if DEBUG:
+if DEBUG and not RUNNING_TESTS:
     try:
         import debug_toolbar  # noqa: F401
 
