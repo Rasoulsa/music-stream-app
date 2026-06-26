@@ -10,8 +10,14 @@
 #   4. Pull latest code from current branch
 #   5. Build and start the full Docker stack
 #   6. Wait for backend to become healthy
-#   7. Print container status
-#   8. Run smoke checks (nginx /healthz + API /api/health/)
+#   7. Refresh App Nginx to avoid stale upstream/Docker DNS issues
+#   8. Print container status and run smoke checks
+#
+# Why Nginx is refreshed:
+#   During redeploys, backend/frontend containers may be recreated and receive
+#   new Docker network IPs. Recreating the app nginx container after backend is
+#   healthy makes the reverse proxy start with fresh upstream/DNS state and
+#   avoids temporary 502 Bad Gateway responses caused by stale upstream targets.
 #
 # Phase II note:
 #   When HAProxy is introduced on Day 40, set in .env.prod:
@@ -28,7 +34,11 @@ set -euo pipefail
 ENV_FILE=".env.prod"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKIP_PULL=false
-HEALTH_RETRIES=40      # × 3s = 120s max wait
+
+BACKEND_HEALTH_RETRIES=40      # × 3s = 120s max wait
+HTTP_RETRIES=20                # × 3s = 60s max wait for HTTP smoke checks
+HTTP_RETRY_SLEEP=3
+
 HEALTH_ENDPOINT="http://localhost/api/health/"
 NGINX_HEALTH="http://localhost/healthz"
 
@@ -47,7 +57,9 @@ COMPOSE_CMD=(
 # ── Flags ─────────────────────────────────────────────────────
 for arg in "$@"; do
   case "$arg" in
-    --skip-pull) SKIP_PULL=true ;;
+    --skip-pull)
+      SKIP_PULL=true
+      ;;
     *)
       echo "Unknown argument: $arg"
       echo "Usage: bash scripts/deploy.sh [--skip-pull]"
@@ -78,13 +90,23 @@ compose_for_message() {
 
 read_env_value() {
   local key="$1"
+  local line
 
   if [[ ! -f "$ENV_FILE" ]]; then
     return 1
   fi
 
-  grep -E "^[[:space:]]*${key}=" "$ENV_FILE" \
-    | tail -n 1 \
+  line="$(
+    grep -E "^[[:space:]]*${key}=" "$ENV_FILE" 2>/dev/null \
+      | tail -n 1 \
+      || true
+  )"
+
+  if [[ -z "$line" ]]; then
+    return 1
+  fi
+
+  echo "$line" \
     | cut -d '=' -f2- \
     | sed -E 's/^[[:space:]]*//; s/[[:space:]]*$//' \
     | sed -E 's/^"//; s/"$//' \
@@ -108,7 +130,13 @@ extract_bind_port() {
 
 port_in_use() {
   local port="$1"
-  ss -tlnp 2>/dev/null | grep -Eq "[:.]${port}[[:space:]]"
+
+  # Uses listening TCP sockets only.
+  # Matches examples like:
+  #   0.0.0.0:80
+  #   127.0.0.1:8444
+  #   [::]:80
+  ss -H -tln 2>/dev/null | grep -Eq "[:.]${port}[[:space:]]"
 }
 
 app_nginx_container_id() {
@@ -118,6 +146,7 @@ app_nginx_container_id() {
 app_nginx_owns_port() {
   local port="$1"
   local cid
+
   cid="$(app_nginx_container_id)"
 
   if [[ -z "$cid" ]]; then
@@ -135,6 +164,7 @@ backend_container_id() {
 
 backend_health_status() {
   local cid
+
   cid="$(backend_container_id)"
 
   if [[ -z "$cid" ]]; then
@@ -145,6 +175,50 @@ backend_health_status() {
   docker inspect "$cid" \
     --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \
     2>/dev/null || echo "unknown"
+}
+
+wait_for_http_200() {
+  local url="$1"
+  local label="$2"
+  local retries="${3:-$HTTP_RETRIES}"
+  local sleep_seconds="${4:-$HTTP_RETRY_SLEEP}"
+  local code="000"
+
+  info "Checking $label: $url"
+
+  for _ in $(seq 1 "$retries"); do
+    code="$(curl -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")"
+
+    if [[ "$code" == "200" ]]; then
+      info "$label → 200 ✓"
+      return 0
+    fi
+
+    echo -n "."
+    sleep "$sleep_seconds"
+  done
+
+  echo ""
+  error "$label returned HTTP $code after $((retries * sleep_seconds))s"
+  return 1
+}
+
+refresh_app_nginx() {
+  info "Refreshing app nginx reverse proxy..."
+
+  # Force recreate only the app nginx service.
+  #
+  # This does NOT touch X Service on :443.
+  # It only recreates the Docker Compose nginx container for this app.
+  #
+  # Purpose:
+  #   - refresh Docker DNS/upstream state
+  #   - avoid stale backend/frontend container IPs after redeploy
+  #   - reduce transient 502 Bad Gateway responses
+  "${COMPOSE_CMD[@]}" up -d --no-deps --force-recreate nginx
+
+  sleep 3
+  info "App nginx refreshed ✓"
 }
 
 # ══════════════════════════════════════════════════════════════
@@ -173,11 +247,12 @@ fi
 # App Nginx bind port.
 # Read from shell env first, then .env.prod, then default.
 NGINX_BIND="${NGINX_HTTP_BIND:-}"
+
 if [[ -z "$NGINX_BIND" ]]; then
   NGINX_BIND="$(read_env_value NGINX_HTTP_BIND || true)"
 fi
-NGINX_BIND="${NGINX_BIND:-0.0.0.0:80}"
 
+NGINX_BIND="${NGINX_BIND:-0.0.0.0:80}"
 NGINX_BIND_PORT="$(extract_bind_port "$NGINX_BIND")"
 
 if [[ -z "$NGINX_BIND_PORT" ]]; then
@@ -223,11 +298,11 @@ info "Running: $(compose_for_message) up -d --build --remove-orphans"
 # ══════════════════════════════════════════════════════════════
 section "5 / 8 — Waiting for backend to become healthy"
 # ══════════════════════════════════════════════════════════════
-info "Waiting up to $((HEALTH_RETRIES * 3))s for backend..."
+info "Waiting up to $((BACKEND_HEALTH_RETRIES * 3))s for backend..."
 
 READY=false
 
-for _ in $(seq 1 "$HEALTH_RETRIES"); do
+for _ in $(seq 1 "$BACKEND_HEALTH_RETRIES"); do
   HEALTH_STATUS="$(backend_health_status)"
 
   if [[ "$HEALTH_STATUS" == "healthy" ]]; then
@@ -250,7 +325,7 @@ done
 echo ""
 
 if [[ "$READY" == false ]]; then
-  error "Backend did not become healthy after $((HEALTH_RETRIES * 3))s."
+  error "Backend did not become healthy after $((BACKEND_HEALTH_RETRIES * 3))s."
   error "Backend health status: $(backend_health_status)"
   error "Check logs:"
   error "  $(compose_for_message) logs backend"
@@ -267,6 +342,10 @@ else
   cat /tmp/music_deploy_check.log || true
 fi
 
+# Refresh app nginx after backend/frontend recreation.
+# This makes redeploys more reliable and avoids stale upstream/Docker DNS issues.
+refresh_app_nginx
+
 # ══════════════════════════════════════════════════════════════
 section "6 / 8 — Container status"
 # ══════════════════════════════════════════════════════════════
@@ -275,30 +354,25 @@ section "6 / 8 — Container status"
 # ══════════════════════════════════════════════════════════════
 section "7 / 8 — Smoke checks"
 # ══════════════════════════════════════════════════════════════
-info "Waiting 5s for nginx to stabilise..."
-sleep 5
+info "Running HTTP smoke checks with retries..."
 
-# Check 1: nginx internal health
-if curl -fsS "$NGINX_HEALTH" >/dev/null 2>&1; then
-  info "Nginx /healthz → 200 ✓"
-else
-  warn "Nginx /healthz did not respond. Check nginx container logs:"
-  warn "  $(compose_for_message) logs nginx"
+# Check 1: nginx internal health.
+if ! wait_for_http_200 "$NGINX_HEALTH" "Nginx /healthz" 15 2; then
+  error "Nginx /healthz failed."
+  error "Check nginx logs:"
+  error "  $(compose_for_message) logs nginx"
+  exit 1
 fi
 
-# Check 2: API health endpoint
-HTTP_CODE="$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_ENDPOINT" 2>/dev/null || echo "000")"
-
-if [[ "$HTTP_CODE" == "200" ]]; then
-  info "API $HEALTH_ENDPOINT → 200 ✓"
-else
-  error "API $HEALTH_ENDPOINT returned HTTP $HTTP_CODE"
+# Check 2: API health endpoint through nginx.
+if ! wait_for_http_200 "$HEALTH_ENDPOINT" "API $HEALTH_ENDPOINT" "$HTTP_RETRIES" "$HTTP_RETRY_SLEEP"; then
+  error "API smoke check failed."
   error "Check logs:"
   error "  $(compose_for_message) logs nginx backend"
   exit 1
 fi
 
-# Check 3: confirm X Service on :443 is still running
+# Check 3: confirm X Service on :443 is still running.
 if port_in_use 443; then
   info "X Service on :443 still running — not affected by deploy ✓"
 else
