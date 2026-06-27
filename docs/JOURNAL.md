@@ -1020,3 +1020,235 @@ curl -s http://localhost/healthz    # → ok
   structure, and feature list.
 - Verified all docs reflect the **actual** routes (`config/urls.py`,
   `music/urls.py`) and Makefile targets — no fictional commands.
+
+## Day 38 — VPS Setup and Server Hardening
+
+### Goal
+Prepare a clean VPS as the first real deployment target for the Music Stream
+App.
+
+### What I did
+
+- Prepared the VPS for production-style deployment.
+- Created a non-root deploy user for application management.
+- Configured SSH access for safer remote administration.
+- Installed required server packages.
+- Installed Docker and Docker Compose plugin.
+- Verified Docker works under the deploy user.
+- Prepared firewall rules for the deployment.
+- Kept infrastructure services such as PostgreSQL, Redis, and MinIO internal
+  to Docker.
+- Documented the VPS-first deployment approach.
+
+### Technical decisions
+
+- Chose VPS deployment first to practice real Linux, Docker, firewall, SSH,
+  and operational workflows before moving to managed cloud services.
+- Used Docker Compose on the VPS to keep the deployment reproducible.
+- Kept application secrets in `.env.prod`, never committed to Git.
+- Kept production infra private by exposing only the reverse proxy layer.
+
+### What I learned
+
+- How host-level setup differs from application-level deployment.
+- Why a dedicated deploy user is safer than deploying directly as root.
+- Why Docker permissions and server firewall rules must be verified early.
+- Why production deployment needs repeatable commands and documentation.
+
+### Related docs
+
+- [`deployment.md`](./deployment.md) — VPS setup and deployment flow.
+- [`security.md`](./security.md) — production security highlights.
+- [`env-management.md`](./env-management.md) — secrets and environment files.
+
+### Next step
+
+- Clone the repository on the VPS.
+- Create `.env.prod`.
+- Start the production stack manually over HTTP.
+- Verify the deployed application through the VPS IP.
+
+---
+
+## Day 39 — Manual VPS Deployment over HTTP
+
+### Goal
+Deploy the full Dockerized Music Stream App manually on the VPS and verify that
+the stack works over plain HTTP before adding a domain and HTTPS.
+
+### What I did
+
+- Cloned the project repository on the VPS.
+- Created and configured `.env.prod` from `.env.prod.example`.
+- Generated strong production secrets with `scripts/generate-secrets.sh`.
+- Started the production stack with Docker Compose.
+- Verified PostgreSQL, Redis, MinIO, backend, Celery, frontend, and nginx
+  containers.
+- Ran migrations and collected static files through the backend container
+  startup flow.
+- Verified nginx as the public entrypoint on port 80.
+- Tested backend health through nginx.
+- Confirmed the frontend was reachable through the VPS.
+- Debugged production deployment issues from container logs.
+- Improved deployment commands and documentation.
+
+### Problems I solved
+
+- Fixed PostgreSQL authentication issues caused by mismatched production
+  database credentials.
+- Resolved container name conflicts from previous failed deployment attempts.
+- Cleaned stale containers and images when restarting the deployment from a
+  known-good state.
+- Fixed environment-variable issues where required production values were
+  missing or not loaded by Docker Compose.
+- Confirmed that `.env.prod` must be present and correct on the VPS before
+  starting the stack.
+
+### Technical decisions
+
+- Kept the first real deployment HTTP-only to reduce variables during initial
+  production validation.
+- Kept `DJANGO_SECURE_SSL=false` until HTTPS is fully confirmed.
+- Used Makefile targets and Docker Compose overlays instead of long manual
+  commands where possible.
+- Treated the HTTP deployment as the baseline before introducing DNS, TLS,
+  and HAProxy routing.
+
+### What I learned
+
+- How to debug deployment failures using `docker compose ps`, logs, and health
+  checks.
+- Why production environment variables must be validated before containers
+  start.
+- Why deployment should be done in phases: HTTP first, then HTTPS.
+- Why stale Docker resources can cause confusing production errors.
+
+### Related docs
+
+- [`deployment.md`](./deployment.md) — manual VPS deployment steps.
+- [`env-management.md`](./env-management.md) — `.env.prod` and secrets.
+- [`smoke-tests.md`](./smoke-tests.md) — production validation checks.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — production service topology.
+
+### Next step
+
+- Add a real domain.
+- Prepare Let's Encrypt certificate management.
+- Add HTTPS support without breaking the existing service already using port
+  443 on the VPS.
+
+---
+
+## Day 40 — Domain + HTTPS with Let's Encrypt and HAProxy SNI
+
+### Goal
+Add HTTPS for the Music Stream App using a real domain and Let's Encrypt, while
+coexisting with another service already using public port 443 on the same VPS.
+
+### What I did
+
+- Designed an HTTPS deployment strategy using HAProxy SNI splitting.
+- Kept HAProxy as the public listener on port 443.
+- Configured the Music Stream App nginx container to terminate TLS on
+  `127.0.0.1:8443`.
+- Kept app nginx bound to public port 80 for Let's Encrypt HTTP-01 challenges
+  and HTTP-to-HTTPS redirects.
+- Added a VPS-specific Docker Compose overlay for HTTPS deployment.
+- Added an nginx HTTPS template using the official nginx image's envsubst
+  mechanism.
+- Used `NGINX_ENVSUBST_FILTER=APP_DOMAIN` so only `APP_DOMAIN` is substituted
+  and nginx runtime variables remain untouched.
+- Added an empty nginx default config override to disable the plain HTTP prod
+  config on the VPS.
+- Added host-level certbot preparation script:
+  `scripts/vps-prepare-https.sh`.
+- Added first-certificate issuance script:
+  `scripts/vps-issue-cert-standalone.sh`.
+- Added Makefile targets for HTTPS preparation and certificate issuance.
+- Improved `scripts/generate-secrets.sh` so only valid `KEY=VALUE` lines go to
+  stdout and human-readable messages go to stderr.
+- Updated `.env.prod.example` with clear Phase I HTTP and Phase II HTTPS
+  instructions.
+- Documented the full HTTPS + HAProxy SNI architecture in
+  `docs/https-haproxy.md`.
+- Updated README and deployment docs to reference the new HTTPS workflow.
+
+### Architecture
+
+Internet :80
+  → App Nginx
+      → Let's Encrypt HTTP-01 challenge
+      → HTTP to HTTPS redirect
+
+Internet :443
+  → HAProxy in TCP mode with SNI inspection
+      ├─ APP_DOMAIN → 127.0.0.1:8443 → App Nginx terminates TLS
+      └─ default    → existing service
+
+### Technical decisions
+
+- Did not bind the app directly to public port 443 because another service is
+  already using it.
+- Used HAProxy in TCP mode so it routes by SNI without terminating TLS.
+- Kept TLS termination inside the app nginx container.
+- Managed Let's Encrypt certificates at the host level with certbot.
+- Mounted `/etc/letsencrypt` read-only into nginx for certificate access.
+- Created `/var/www/certbot` as the ACME webroot path.
+- Used scripts for VPS HTTPS preparation instead of manual one-off commands.
+- Kept the scripts idempotent so they can be safely re-run.
+- Kept `DJANGO_SECURE_SSL=false` until public HTTPS is confirmed working.
+- Kept the detailed command-level HTTPS guide in `docs/https-haproxy.md` so
+  the journal stays focused on progress and decisions.
+
+### Why this matters
+
+- The app can now be served securely with a real domain.
+- The VPS can host multiple HTTPS services on the same public port 443.
+- The deployment matches a real-world single-VPS pattern:
+  host HAProxy + host certbot + Dockerized application stack.
+- Certificate management is separated from application deployment.
+- The deployment process is documented, repeatable, and easier to debug.
+- The project now demonstrates production deployment constraints beyond a
+  simple one-app-one-server setup.
+
+### What I learned
+
+- How SNI allows multiple HTTPS services to share one public IP and port.
+- How HAProxy can route TLS traffic in TCP mode without decrypting it.
+- Why certbot and certificate directories are often managed at the host level.
+- How the official nginx Docker image renders templates from
+  `/etc/nginx/templates/*.template`.
+- Why envsubst must be filtered to avoid accidentally replacing nginx runtime
+  variables like `$host`, `$request_uri`, and `$remote_addr`.
+- Why HTTPS should be enabled in phases to avoid redirect lockouts.
+- Why deployment scripts should be idempotent and safe to run multiple times.
+
+### Verification
+
+- Confirmed Compose configuration renders expected nginx binds.
+- Confirmed `APP_DOMAIN` is passed into the nginx container.
+- Confirmed nginx template strategy preserves nginx runtime variables.
+- Confirmed generated secrets are append-safe for `.env.prod`.
+- Prepared the deployment flow for real certificate issuance and HAProxy reload
+  on the VPS.
+- Confirmed the HTTPS deployment guide documents DNS, certbot, nginx, HAProxy,
+  verification, renewal, and troubleshooting.
+
+### Related docs
+
+- [`https-haproxy.md`](./https-haproxy.md) — full HTTPS + HAProxy SNI guide.
+- [`deployment.md`](./deployment.md) — general VPS deployment flow.
+- [`env-management.md`](./env-management.md) — production environment variables.
+- [`security.md`](./security.md) — security decisions and production hardening.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — system topology and request flows.
+
+### Next step
+
+- Pull the branch on the VPS.
+- Set real `APP_DOMAIN` and `ACME_EMAIL` in `.env.prod`.
+- Run `make vps-prepare-https`.
+- Run `make vps-issue-cert`.
+- Start the HTTPS stack with `make vps-up`.
+- Add the HAProxy SNI route and reload HAProxy.
+- Verify public HTTPS in the browser.
+- Enable `DJANGO_SECURE_SSL=true` only after HTTPS works.
