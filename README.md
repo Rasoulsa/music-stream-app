@@ -37,8 +37,8 @@ Phase 5 progress:
 ```text
 Day 38 → VPS setup                  ✅ Done
 Day 39 → Manual VPS deploy          ✅ Done
-Day 40 → Domain + HTTPS             ⏭️ Next
-Day 41 → CI/CD auto-deploy
+Day 40 → Domain + HTTPS             ✅ Done
+Day 41 → CI/CD auto-deploy          ⏭️ Next
 Day 42 → Monitoring + logging
 Day 43 → Backups
 Day 44 → AWS/cloud migration intro
@@ -80,7 +80,7 @@ Day 45 → Final demo prep
 - [x] VPS setup preparation: server hardening, Docker, firewall
 - [x] Manual VPS deployment (HTTP, port 80)
 - [ ] Live VPS deployment
-- [ ] Domain + HTTPS
+- [x] Domain + HTTPS (Let's Encrypt + HAProxy SNI)
 - [ ] Monitoring and backups
 - [ ] Playlists
 - [ ] Favorite/liked songs
@@ -224,16 +224,22 @@ music-stream-app/
 │   ├── package.json
 │   └── README.md
 ├── nginx/
-│   └── nginx.conf
+│   ├── disabled/
+|   |   └── default.conf
+|   ├── app-ssl.conf.template
+|   └── nginx.conf
 ├── scripts/
 │   ├── check-env.sh
 │   ├── deploy.sh
 │   ├── generate-secrets.sh
 │   ├── server-setup.sh
-│   └── smoke-prod.sh
+│   ├── smoke-prod.sh
+│   ├── vps-prepare-https.sh
+│   └── vps-issue-cert-standalone.sh
 ├── docs/
 │   ├── ARCHITECTURE.md
-│   ├── DEPLOYMENT.md
+│   ├── deployment.md
+│   ├── https-haproxy.md
 │   ├── env-management.md
 │   ├── performance.md
 │   ├── security.md
@@ -375,8 +381,8 @@ Phase 5, Deployment & Cloud, is in progress:
 
 - ✅ Day 38 — VPS setup: server hardening, Docker, firewall
 - ✅ Day 39 — Manual VPS deploy
-- ⏭️ Day 40 — Domain + HTTPS with Let's Encrypt
-- ⬜ Day 41 — CI/CD auto-deploy to VPS
+- ✅ Day 40 — Domain + HTTPS (Let's Encrypt + HAProxy SNI) — [`docs/https-haproxy.md`](./docs/https-haproxy.md)
+- ⏭️ Day 41 — CI/CD auto-deploy to VPS
 - ⬜ Day 42 — Monitoring and logging basics
 - ⬜ Day 43 — Database and media backups
 - ⬜ Day 44 — AWS/cloud migration intro
@@ -604,6 +610,10 @@ Common commands:
 | `make test-backend-perf` | Run backend performance tests |
 | `make schema-freeze` | Regenerate frozen OpenAPI schema |
 | `make schema-check` | Check live schema against frozen schema |
+| `make vps-config` | Render merged VPS Compose config |
+| `make vps-up` | Start VPS HTTPS stack |
+| `make vps-prepare-https` | VPS: install certbot, create dirs, renewal hook |
+| `make vps-issue-cert` | VPS: issue initial Let's Encrypt certificate |
 
 ---
 
@@ -621,6 +631,7 @@ Common commands:
 | [`backend/README.md`](./backend/README.md) | Backend developer guide |
 | [`frontend/README.md`](./frontend/README.md) | Frontend developer guide |
 | [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Contribution workflow |
+| [`docs/https-haproxy.md`](./docs/https-haproxy.md) | HTTPS with Let's Encrypt + HAProxy SNI |
 
 ---
 
@@ -634,6 +645,7 @@ Common commands:
 - [x] Phase 4 — Integration & Production
 - [x] Day 38 — VPS setup: server hardening, Docker, firewall
 - [x] Day 39 — Manual VPS deploy (HTTP, port 80)
+- [x] Day 40 — Domain + HTTPS with Let's Encrypt
 
 ### In Progress
 
@@ -641,7 +653,6 @@ Common commands:
 
 ### Next
 
-- [ ] Day 40 — Domain + HTTPS with Let's Encrypt
 - [ ] Day 41 — CI/CD auto-deploy to VPS
 - [ ] Day 42 — Monitoring and logging basics
 - [ ] Day 43 — Database and media backups
@@ -669,6 +680,7 @@ This project demonstrates:
 - Coexisting with an existing service on the same VPS without port conflicts
 - Adding smoke tests for deployment confidence
 - Documenting architecture and engineering decisions
+- Serving HTTPS behind HAProxy SNI routing to coexist with another service on port 443
 
 ---
 

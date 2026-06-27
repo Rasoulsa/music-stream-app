@@ -113,8 +113,23 @@ X_FRAME_OPTIONS = "DENY"
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 
+# -----------------------------------------------------------------------------
+# CSRF trusted origins
+# -----------------------------------------------------------------------------
+# Required so Django admin / session-based POSTs work over HTTPS behind the
+# HAProxy → Nginx proxy chain. Must include the scheme, e.g.:
+#   CSRF_TRUSTED_ORIGINS=https://my.domain.com
+CSRF_TRUSTED_ORIGINS = env.list(  # noqa: F405
+    "CSRF_TRUSTED_ORIGINS",
+    default=[],
+)
+
 if SECURE_SSL:
-    SECURE_SSL_REDIRECT = True
+    # HTTP→HTTPS redirect is handled by Nginx on :80 (see nginx config).
+    # We keep Django's redirect OFF to avoid double-redirect/loops behind
+    # the HAProxy SNI passthrough + Nginx TLS termination chain.
+    SECURE_SSL_REDIRECT = False
+
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 31_536_000  # 1 year
