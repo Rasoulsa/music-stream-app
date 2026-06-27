@@ -41,7 +41,7 @@
 #   make vps-logs        		[VPS] Follow all logs
 #   make vps-nginx-test  		[VPS] Test nginx config syntax
 #   make vps-nginx-verify 		[VPS] Verify APP_DOMAIN substitution in nginx
-#   make vps-ps          [		VPS] Show service status
+#   make vps-ps          		[VPS] Show service status
 #
 #	make vps-prepare-https  	[VPS] Install certbot, create HTTPS dirs, install renewal hook
 # 	make vps-issue-cert VPS 	[VPS] Issue initial Let's Encrypt cert using standalone mode
