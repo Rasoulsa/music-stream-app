@@ -31,7 +31,7 @@ set -euo pipefail
 
 # ---- Configuration -------------------------------------------------------
 DEPLOY_USER="deploy"
-APP_DIR="/opt/music-stream-app"
+APP_DIR="/home/${DEPLOY_USER}/apps/music-stream-app"
 SSH_PORT="22"   # change if you want a custom SSH port (also update UFW)
 
 echo "==> Music Stream App — Server Setup"
@@ -51,6 +51,8 @@ apt-get install -y \
   ca-certificates \
   curl \
   gnupg \
+  make \
+  git \
   ufw \
   fail2ban \
   unattended-upgrades
@@ -169,6 +171,13 @@ systemctl restart fail2ban
 echo "==> Creating app directory at $APP_DIR..."
 mkdir -p "$APP_DIR"
 chown -R "$DEPLOY_USER:$DEPLOY_USER" "$APP_DIR"
+
+# ---- 9. Verification ----------------------------------------------------
+echo "==> Verifying installed tools..."
+docker --version
+docker compose version
+make --version | head -n 1
+git --version
 
 # ---- Done ----------------------------------------------------------------
 echo ""
