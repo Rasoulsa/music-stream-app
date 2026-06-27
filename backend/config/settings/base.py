@@ -175,7 +175,11 @@ if USE_S3:
         },
     }
 
-    MEDIA_URL = f"http://{AWS_S3_CUSTOM_DOMAIN}/"
+    #   Use AWS_S3_URL_PROTOCOL so media URLs follow the public scheme.
+    #   I  (HTTP):  AWS_S3_URL_PROTOCOL=http:   → http://<domain>/...
+    #   II (HTTPS): AWS_S3_URL_PROTOCOL=https:  → https://<domain>/...
+    #   AWS_S3_URL_PROTOCOL already includes the trailing colon, e.g. "https:".
+    MEDIA_URL = f"{AWS_S3_URL_PROTOCOL}//{AWS_S3_CUSTOM_DOMAIN}/"
 else:
     STORAGES = {
         "default": {

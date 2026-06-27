@@ -3,37 +3,48 @@
 # =============================================================================
 #
 # Usage:
-#   make dev-up          Build and start dev stack (foreground)
-#   make dev-up-d        Build and start dev stack (detached/background)
-#   make dev-down        Stop dev stack
-#   make dev-logs        Follow dev logs
-#   make dev-shell       Open bash shell in backend container (dev)
-#   make dev-test        Run pytest in backend container (dev)
-#   make dev-test-cov    Run pytest with coverage (dev)
-#   make dev-migrate     Run migrations (dev)
-#   make dev-createsuperuser   Create Django superuser (dev)
+#   make dev-up          		Build and start dev stack (foreground)
+#   make dev-up-d        		Build and start dev stack (detached/background)
+#   make dev-down        		Stop dev stack
+#   make dev-logs        		Follow dev logs
+#   make dev-shell       		Open bash shell in backend container (dev)
+#   make dev-test        		Run pytest in backend container (dev)
+#   make dev-test-cov    		Run pytest with coverage (dev)
+#   make dev-migrate     		Run migrations (dev)
+#   make dev-createsuperuser    Create Django superuser (dev)
 #
-#   make prod-up         Build and start prod stack (detached/background)
-#   make prod-down       Stop prod stack
-#   make prod-logs       Follow prod logs
-#   make prod-ps         Show prod service status
-#   make prod-shell      Open bash shell in backend container (prod)
+#   make prod-up         		Build and start prod stack (detached/background)
+#   make prod-down       		Stop prod stack
+#   make prod-logs       		Follow prod logs
+#   make prod-ps         		Show prod service status
+#   make prod-shell      		Open bash shell in backend container (prod)
 #
-#   make test-db-up      Start disposable local PostgreSQL test DB
-#   make test-backend    Run backend pytest locally
-#   make test-backend-cov Run backend pytest locally with coverage
-#   make test-db-down    Stop disposable local PostgreSQL test DB
+#   make test-db-up      		Start disposable local PostgreSQL test DB
+#   make test-backend    		Run backend pytest locally
+#   make test-backend-cov 		Run backend pytest locally with coverage
+#   make test-db-down    		Stop disposable local PostgreSQL test DB
 #
-#   make test-backend-perf Run backend performance tests only
+#   make test-backend-perf 		Run backend performance tests only
 #
-#   make secrets         Generate strong secrets for .env.prod
-#   make check-env       Validate .env.prod before deploying
+#   make secrets         		Generate strong secrets for .env.prod
+#   make check-env       		Validate .env.prod before deploying
 #
-#   make smoke-prod      Run end-to-end smoke tests against prod stack
-#   make prod-restart    Restart prod stack safely without deleting volumes
-#   make clean           Stop dev stack + wipe dev project volumes
-#   make clean-prod      Stop prod stack + wipe prod project volumes
-#   make help            Show this help message
+#   make smoke-prod      		Run end-to-end smoke tests against prod stack
+#   make prod-restart    		Restart prod stack safely without deleting volumes
+#   make clean           		Stop dev stack + wipe dev project volumes
+#   make clean-prod      		Stop prod stack + wipe prod project volumes
+#   make help            		Show this help message
+#
+#   make vps-up          		[VPS] Build and start HTTPS stack
+#   make vps-down        		[VPS] Stop HTTPS stack
+#   make vps-restart     		[VPS] Restart HTTPS stack safely
+#   make vps-logs        		[VPS] Follow all logs
+#   make vps-nginx-test  		[VPS] Test nginx config syntax
+#   make vps-nginx-verify 		[VPS] Verify APP_DOMAIN substitution in nginx
+#   make vps-ps          [		VPS] Show service status
+#
+#	make vps-prepare-https  	[VPS] Install certbot, create HTTPS dirs, install renewal hook
+# 	make vps-issue-cert VPS 	[VPS] Issue initial Let's Encrypt cert using standalone mode
 #
 # =============================================================================
 
@@ -325,3 +336,87 @@ test-backend-perf:	## Run backend performance tests only
 	POSTGRES_USER=musicuser \
 	POSTGRES_PASSWORD=musicuser123 \
 	uv run pytest music/tests/test_performance.py -v --ds=config.settings.ci --create-db --no-cov
+
+# -----------------------------------------------------------------------------
+# VPS (HTTPS production override)
+# Used on the VPS only. Requires APP_DOMAIN and cert mounts.
+# Not intended for local use (cert paths don't exist on dev machines).
+# -----------------------------------------------------------------------------
+VPS_PROJECT ?= music-stream-prod
+
+VPS = docker compose --project-name $(VPS_PROJECT) --env-file .env.prod \
+      -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.vps.yml
+
+.PHONY: vps-up
+vps-up: check-env	## [VPS] Build and start HTTPS stack (detached)
+	$(VPS) up --build -d --remove-orphans
+
+.PHONY: vps-down
+vps-down:		## [VPS] Stop HTTPS stack (keeps volumes)
+	$(VPS) down
+
+.PHONY: vps-restart
+vps-restart:		## [VPS] Restart HTTPS stack safely without deleting volumes
+	$(VPS) down
+	$(VPS) up --build -d --remove-orphans
+
+.PHONY: vps-logs
+vps-logs:		## [VPS] Follow logs for all services
+	$(VPS) logs -f
+
+.PHONY: vps-logs-nginx
+vps-logs-nginx:		## [VPS] Follow nginx logs only
+	$(VPS) logs -f nginx
+
+.PHONY: vps-logs-backend
+vps-logs-backend:	## [VPS] Follow backend logs only
+	$(VPS) logs -f backend
+
+.PHONY: vps-ps
+vps-ps:			## [VPS] Show status of all VPS services
+	$(VPS) ps
+
+.PHONY: vps-shell-nginx
+vps-shell-nginx:	## [VPS] Open shell inside nginx container
+	$(VPS) exec nginx /bin/sh
+
+.PHONY: vps-shell-backend
+vps-shell-backend:	## [VPS] Open bash shell inside backend container
+	$(VPS) exec backend /bin/bash
+
+.PHONY: vps-migrate
+vps-migrate:		## [VPS] Run Django migrations
+	$(VPS) exec backend /app/.venv/bin/python manage.py migrate
+
+.PHONY: vps-collectstatic
+vps-collectstatic:	## [VPS] Run collectstatic
+	$(VPS) exec backend /app/.venv/bin/python manage.py collectstatic --noinput
+
+.PHONY: vps-createsuperuser
+vps-createsuperuser:	## [VPS] Create Django superuser
+	$(VPS) exec backend /app/.venv/bin/python manage.py createsuperuser
+
+.PHONY: vps-nginx-test
+vps-nginx-test:		## [VPS] Test nginx config syntax inside container
+	$(VPS) exec nginx nginx -t
+
+.PHONY: vps-nginx-verify
+vps-nginx-verify:	## [VPS] Verify APP_DOMAIN was substituted in nginx config
+	@echo "--- /etc/nginx/conf.d/ contents ---"
+	$(VPS) exec nginx ls -la /etc/nginx/conf.d/
+	@echo "--- ssl_certificate lines ---"
+	$(VPS) exec nginx grep ssl_certificate /etc/nginx/conf.d/app-ssl.conf
+	@echo "--- proxy_set_header Host (should contain \$$host) ---"
+	$(VPS) exec nginx grep 'proxy_set_header.*Host' /etc/nginx/conf.d/app-ssl.conf
+
+.PHONY: vps-config
+vps-config:		## [VPS] Render final VPS Compose config (dry run)
+	$(VPS) config
+
+.PHONY: vps-prepare-https
+vps-prepare-https: ## VPS only: install certbot, create HTTPS dirs, install renewal hook
+	./scripts/vps-prepare-https.sh
+
+.PHONY: vps-issue-cert
+vps-issue-cert: ## VPS only: issue initial Let's Encrypt cert using standalone mode
+	./scripts/vps-issue-cert-standalone.sh

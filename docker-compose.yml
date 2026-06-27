@@ -1,7 +1,6 @@
 services:
   db:
     image: postgres:16
-    container_name: music-db
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -16,7 +15,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: music-redis
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -28,7 +26,6 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: music-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID}
@@ -43,7 +40,6 @@ services:
 
   createbuckets:
     image: minio/mc:latest
-    container_name: music-createbuckets
     depends_on:
       minio:
         condition: service_healthy
@@ -58,7 +54,6 @@ services:
   backend:
     build:
       context: ./backend
-    container_name: music-backend
     command: >
       /app/.venv/bin/python manage.py runserver 0.0.0.0:8000
     depends_on:
@@ -75,7 +70,6 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://127.0.0.1:8000/api/v1}
-    container_name: music-frontend
     # ← ports removed: host ports live in docker-compose.dev.yml only
     depends_on:
       - backend
@@ -84,7 +78,6 @@ services:
   celery_worker:
     build:
       context: ./backend
-    container_name: music-celery
     command: /app/.venv/bin/celery -A config worker --loglevel=info
     depends_on:
       db:
