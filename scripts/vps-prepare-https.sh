@@ -60,6 +60,7 @@ ${SUDO} install -d -o root -g root -m 755 /var/www/certbot
 echo ""
 echo "==> Installing certbot renewal deploy hook"
 
+sudo mkdir -p /etc/letsencrypt/renewal-hooks/deploy
 HOOK_PATH="/etc/letsencrypt/renewal-hooks/deploy/reload-music-stream-nginx.sh"
 
 ${SUDO} tee "${HOOK_PATH}" >/dev/null <<HOOK

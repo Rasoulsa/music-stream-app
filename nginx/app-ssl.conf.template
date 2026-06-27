@@ -73,7 +73,7 @@ server {
 
     # Everything else → HTTPS.
     location / {
-        return 301 https://$host$request_uri;
+        return 301 https://${APP_DOMAIN}$request_uri;
     }
 }
 
