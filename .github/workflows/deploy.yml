@@ -2,13 +2,26 @@ name: Deploy to VPS
 
 # -----------------------------------------------------------------------------
 # Triggers:
-#   - Automatic: every push to main
-#   - Manual: Actions tab → "Run workflow"
+#   - Pull Request to main: run tests only
+#   - Push/Merge to main: run tests only
+#   - Manual: Actions tab → "Run workflow" → run tests, deploy, verify
+#
+# Production deployment is intentionally manual.
+# This prevents accidental VPS updates when merging to main.
 # -----------------------------------------------------------------------------
 on:
+  pull_request:
+    branches: [main]
+
   push:
     branches: [main]
+
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type deploy to confirm production VPS deployment"
+        required: true
+        default: ""
 
 # Belt-and-suspenders with deploy.sh's own flock lock:
 # CI won't start a second deploy while one is already running.
@@ -18,7 +31,12 @@ concurrency:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # 1. Test gate — never deploy broken code
+  # 1. Test gate — always run tests before any possible deployment
+  #
+  # Runs on:
+  #   - pull_request to main
+  #   - push/merge to main
+  #   - manual workflow_dispatch
   # ---------------------------------------------------------------------------
   test:
     name: Test gate
@@ -66,25 +84,36 @@ jobs:
         run: uv run pytest -v --ds=config.settings.ci --no-cov --create-db
 
   # ---------------------------------------------------------------------------
-  # 2. Deploy — SSH into VPS and run the existing scripts/deploy.sh
+  # 2. Deploy — manual only
   #
-  # No deploy logic lives here. All real behavior (env validation,
-  # port pre-flight, health waits, nginx refresh, smoke checks) is in
-  # scripts/deploy.sh — shared by manual and CI runs identically.
+  # This job runs ONLY when:
+  #   - The workflow was started manually from GitHub Actions
+  #   - The selected branch is main
+  #   - The confirm input is exactly: deploy
+  #
+  # It does NOT run on push to main.
+  # It does NOT run after merging a PR.
+  # It does NOT run on feature branches.
   # ---------------------------------------------------------------------------
   deploy:
     name: Deploy to VPS
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    environment: production
+    if: >
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      github.event.inputs.confirm == 'deploy'
 
     steps:
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
+
           # Write the CI deploy private key
           echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+
           # Pre-seed known_hosts to satisfy StrictHostKeyChecking
           ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
 
@@ -94,33 +123,42 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_APP_DIR: ${{ secrets.VPS_APP_DIR }}
         run: |
-          # Pass VPS_APP_DIR as argument $1 to avoid shell quoting issues
-          # with the heredoc. <<'ENDSSH' means nothing is expanded by the
-          # GitHub Actions runner — everything runs on the remote VPS shell.
+          # Pass VPS_APP_DIR as argument $1 to avoid shell quoting issues.
+          # <<'ENDSSH' means nothing is expanded by the GitHub Actions runner —
+          # everything runs on the remote VPS shell.
           ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=yes \
             "${VPS_USER}@${VPS_HOST}" bash -s -- "${VPS_APP_DIR}" <<'ENDSSH'
           set -euo pipefail
+
           APP_DIR="$1"
           cd "$APP_DIR"
+
           echo "==> Syncing to origin/main..."
           git fetch --all --prune
           git checkout main
           git reset --hard origin/main
+
           echo "==> Commit: $(git rev-parse --short HEAD)"
+
           echo "==> Running deploy..."
           bash scripts/deploy.sh
           ENDSSH
 
   # ---------------------------------------------------------------------------
-  # 3. Verify — hit the public HTTPS health endpoint from outside the VPS
-  #    Confirms HAProxy → nginx → backend is fully working end-to-end.
+  # 3. Verify — manual deploy verification only
+  #
+  # Runs only after the manual deploy job.
+  # Confirms HAProxy → nginx → backend is fully working end-to-end.
   # ---------------------------------------------------------------------------
   verify:
     name: Verify health
     needs: deploy
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: >
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      github.event.inputs.confirm == 'deploy'
 
     steps:
       - name: Public HTTPS health check
@@ -128,13 +166,16 @@ jobs:
           HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
         run: |
           echo "Checking ${HEALTHCHECK_URL}..."
+
           for i in 1 2 3 4 5 6; do
             if curl -fsS "${HEALTHCHECK_URL}" >/dev/null; then
               echo "✅ Health OK — deploy complete"
               exit 0
             fi
+
             echo "Attempt $i failed, retrying in 5s..."
             sleep 5
           done
+
           echo "❌ Health check failed after retries"
           exit 1
