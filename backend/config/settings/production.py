@@ -102,16 +102,38 @@ DATABASES = {
 # -----------------------------------------------------------------------------
 #
 # DJANGO_SECURE_SSL controls HTTPS-dependent settings:
-#   false → local Docker testing over plain HTTP  (current: Days 31-37)
-#   true  → real HTTPS behind nginx + Let's Encrypt (Day 40+)
+#   false → local Docker testing over plain HTTP
+#   true  → real HTTPS behind HAProxy + Nginx + Let's Encrypt
 #
 SECURE_SSL = env.bool("DJANGO_SECURE_SSL", default=True)  # noqa: F405
 
-# Always-on security headers (HTTP and HTTPS)
-SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = "DENY"
+# Cookie hardening remains Django's responsibility.
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
+
+# Public HTTP security headers are owned by the production Nginx edge proxy.
+#
+# Reason:
+#   Browser → HAProxy → Nginx → Django
+#
+# Nginx is the public edge and can apply consistent headers to frontend, API,
+# static, media, and proxied object-storage responses. Django sits behind Nginx,
+# so emitting the same headers here creates duplicate response headers.
+SECURE_CONTENT_TYPE_NOSNIFF = False
+SECURE_REFERRER_POLICY = None
+
+SECURE_HSTS_SECONDS = 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
+
+# X-Frame-Options is also emitted by Nginx.
+# Remove Django's clickjacking middleware in production to avoid duplicate
+# X-Frame-Options headers on proxied API/admin responses.
+MIDDLEWARE = [  # noqa: F405
+    middleware
+    for middleware in MIDDLEWARE  # noqa: F405
+    if middleware != "django.middleware.clickjacking.XFrameOptionsMiddleware"
+]
 
 # -----------------------------------------------------------------------------
 # CSRF trusted origins
@@ -125,19 +147,16 @@ CSRF_TRUSTED_ORIGINS = env.list(  # noqa: F405
 )
 
 if SECURE_SSL:
-    # HTTP→HTTPS redirect is handled by Nginx on :80 (see nginx config).
-    # We keep Django's redirect OFF to avoid double-redirect/loops behind
+    # HTTP→HTTPS redirect is handled by Nginx on :80.
+    # Keep Django's redirect OFF to avoid double-redirect/loops behind
     # the HAProxy SNI passthrough + Nginx TLS termination chain.
     SECURE_SSL_REDIRECT = False
 
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = 31_536_000  # 1 year
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
 else:
-    # Plain HTTP (local prod testing) — cookies still work, just not
-    # marked Secure so the browser doesn't block them over HTTP.
+    # Plain HTTP local production-style testing.
+    # Cookies must not be marked Secure, otherwise browsers block them over HTTP.
     SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
