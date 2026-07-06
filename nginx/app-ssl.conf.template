@@ -45,7 +45,7 @@ gzip_types
     application/vnd.ms-fontobject;
 
 # ============================================================
-# HTTP :80 — ACME challenge + redirect to HTTPS
+# HTTP :80 — ACME challenge + health checks + redirect to HTTPS
 # ============================================================
 server {
     listen 80;
@@ -57,21 +57,44 @@ server {
     resolver 127.0.0.11 valid=10s ipv6=off;
     resolver_timeout 5s;
 
-    # Let's Encrypt HTTP-01 challenge.
+    # ── Let's Encrypt HTTP-01 challenge ──────────────────────
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
         default_type "text/plain";
         access_log off;
     }
 
-    # Internal health (kept on HTTP for Docker healthcheck simplicity).
+    # ── Internal health endpoints (HTTP for deploy checks) ────
+    # These are checked by:
+    #   - Docker healthchecks during container startup
+    #   - deploy.sh smoke checks before considering deploy done
+    #   - CI/CD pipeline verification
+    # Intentionally on HTTP to avoid self-signed cert issues during deploy.
     location = /healthz {
         access_log off;
         default_type text/plain;
         return 200 "ok\n";
     }
 
-    # Everything else → HTTPS.
+    location = /api/health/ {
+        proxy_pass         http://backend:8000;
+        proxy_http_version 1.1;
+
+        proxy_set_header   Connection          "";
+        proxy_set_header   Host                $host;
+        proxy_set_header   X-Real-IP           $remote_addr;
+        proxy_set_header   X-Forwarded-For     $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto   http;
+
+        proxy_connect_timeout 5s;
+        proxy_read_timeout    10s;
+        proxy_send_timeout    5s;
+
+        access_log off;
+    }
+
+    # ── Redirect everything else to HTTPS ────────────────────
+    # Real app traffic must use HTTPS.
     location / {
         return 301 https://${APP_DOMAIN}$request_uri;
     }

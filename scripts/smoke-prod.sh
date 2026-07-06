@@ -7,12 +7,44 @@
 # ============================================================
 set -uo pipefail
 
-BASE="http://localhost"
+BASE="${SMOKE_BASE_URL:-http://localhost}"
+
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-music-stream-prod}"
+COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-.env.prod}"
+
+COMPOSE_CMD=(
+  docker compose
+  --project-name "$COMPOSE_PROJECT_NAME"
+  --env-file "$COMPOSE_ENV_FILE"
+  -f docker-compose.yml
+  -f docker-compose.prod.yml
+)
+
 PASS=0
 FAIL=0
 ERRORS=()
 
 # ── Helpers ──────────────────────────────────────────────────
+service_id() {
+  local service="$1"
+
+  "${COMPOSE_CMD[@]}" ps -q "$service" 2>/dev/null | head -n 1
+}
+
+exec_service() {
+  local service="$1"
+  shift
+
+  local cid
+  cid="$(service_id "$service")"
+
+  if [[ -z "$cid" ]]; then
+    return 1
+  fi
+
+  docker exec "$cid" "$@"
+}
+
 check() {
   local desc="$1"; shift
   if eval "$@" &>/dev/null; then
@@ -56,31 +88,45 @@ echo ""
 # ── 1. Container health ──────────────────────────────────────
 echo "  [1/10] Container Health"
 divider
-CONTAINERS=(
-  "music-db"
-  "music-redis"
-  "music-minio"
-  "music-backend"
-  "music-celery"
-  "music-frontend"
-  "music-nginx"
+SERVICES=(
+  "db"
+  "redis"
+  "minio"
+  "backend"
+  "celery_worker"
+  "frontend"
+  "nginx"
 )
-for ctr in "${CONTAINERS[@]}"; do
-  HEALTH=$(docker inspect --format='{{.State.Health.Status}}' "$ctr" 2>/dev/null || echo "not-found")
-  STATE=$(docker inspect --format='{{.State.Status}}' "$ctr" 2>/dev/null || echo "not-found")
+
+for svc in "${SERVICES[@]}"; do
+  CID="$(service_id "$svc")"
+
+  if [[ -z "$CID" ]]; then
+    echo "  ❌  $svc → container not found"
+    FAIL=$((FAIL+1))
+    ERRORS+=("Service $svc container not found")
+    continue
+  fi
+
+  NAME="$(docker inspect --format='{{.Name}}' "$CID" 2>/dev/null | sed 's#^/##')"
+  HEALTH="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$CID" 2>/dev/null || echo "unknown")"
+  STATE="$(docker inspect --format='{{.State.Status}}' "$CID" 2>/dev/null || echo "unknown")"
+
   if [[ "$HEALTH" == "healthy" ]]; then
-    echo "  ✅  $ctr → healthy"
+    echo "  ✅  $NAME → healthy"
     PASS=$((PASS+1))
-  elif [[ "$STATE" == "running" ]]; then
-    echo "  ✅  $ctr → running (no healthcheck configured)"
+  elif [[ "$HEALTH" == "none" && "$STATE" == "running" ]]; then
+    echo "  ✅  $NAME → running (no healthcheck configured)"
+    PASS=$((PASS+1))
+  elif [[ "$STATE" == "running" && "$HEALTH" == "starting" ]]; then
+    echo "  ✅  $NAME → running (healthcheck starting)"
     PASS=$((PASS+1))
   else
-    echo "  ❌  $ctr → $STATE / $HEALTH"
+    echo "  ❌  $NAME → $STATE / $HEALTH"
     FAIL=$((FAIL+1))
-    ERRORS+=("Container $ctr is not healthy: $STATE / $HEALTH")
+    ERRORS+=("Service $svc is not healthy: $STATE / $HEALTH")
   fi
 done
-echo ""
 
 # ── 2. Infrastructure endpoints ──────────────────────────────
 echo "  [2/10] Infrastructure Endpoints"
@@ -176,7 +222,7 @@ echo "  [5/10] Object Storage (MinIO)"
 divider
 # Internal health — MinIO API responding inside its own container
 check "MinIO API health (internal)" \
-  "docker exec music-minio curl -sf http://localhost:9000/minio/health/live"
+  'exec_service nginx wget -qO- http://minio:9000/minio/health/live >/dev/null'
 
 # nginx → MinIO proxy (any response except 502/503 = proxy is working)
 MINIO_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/music-media/")
@@ -226,7 +272,8 @@ check "scripts/smoke-prod.sh exists + runnable" "test -x scripts/smoke-prod.sh"
 check "DJANGO_SETTINGS_MODULE=production"       "grep -q 'config.settings.production' .env.prod"
 # FIX: real .env.prod.example uses lowercase "DEBUG=false" (verified),
 # not "DEBUG=False". The old check could never match the actual file.
-check "DEBUG=false in .env.prod"                "grep -q '^DEBUG=false' .env.prod"
+check "DEBUG=false in .env.prod" \
+  'grep -Eiq "^[[:space:]]*DEBUG[[:space:]]*=[[:space:]]*\"?false\"?[[:space:]]*$" .env.prod'
 # FIX: real .env.prod.example uses "DJANGO_SECRET_KEY=" (verified), not
 # "SECRET_KEY=". The old check was anchored to a variable name this
 # project doesn't use, so it could never validate the real secret key.
@@ -333,7 +380,7 @@ else
   # This is deliberately best-effort and non-fatal: if it fails, it's
   # reported as informational only, never as a FAIL, since it's cleanup
   # of test data, not a check of the app itself.
-  if docker exec music-backend /app/.venv/bin/python manage.py shell -c "
+  if exec_service backend /app/.venv/bin/python manage.py shell -c "
 from django.contrib.auth import get_user_model
 get_user_model().objects.filter(username='${USERNAME}').delete()
 " >/dev/null 2>&1; then
@@ -410,7 +457,8 @@ if [[ "$FAIL" -gt 0 ]]; then
   echo "  Debug:"
   echo "     make prod-logs-backend"
   echo "     make prod-logs"
-  echo "     docker exec music-nginx wget -qO- http://minio:9000/minio/health/live"
+  echo "     COMPOSE_PROJECT_NAME=$COMPOSE_PROJECT_NAME ./scripts/smoke-prod.sh"
+  echo "     docker compose --project-name $COMPOSE_PROJECT_NAME --env-file $COMPOSE_ENV_FILE -f docker-compose.yml -f docker-compose.prod.yml logs nginx backend minio"
   echo ""
   exit 1
 else

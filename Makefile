@@ -68,7 +68,7 @@
 #     2. avoid duplicate host port bindings
 # -----------------------------------------------------------------------------
 DEV_PROJECT  ?= music-stream-dev
-PROD_PROJECT ?= music-stream-app
+PROD_PROJECT ?= music-stream-prod
 
 DEV  = docker compose --project-name $(DEV_PROJECT)  --env-file .env.dev  -f docker-compose.yml -f docker-compose.dev.yml
 PROD = docker compose --project-name $(PROD_PROJECT) --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml
@@ -234,7 +234,7 @@ prod-restart:		## Restart prod stack safely without deleting volumes
 
 .PHONY: smoke-prod
 smoke-prod:		## Run end-to-end smoke test against running prod stack
-	@./scripts/smoke-prod.sh
+	@COMPOSE_PROJECT_NAME=$(PROD_PROJECT) COMPOSE_ENV_FILE=.env.prod ./scripts/smoke-prod.sh
 
 # -----------------------------------------------------------------------------
 # Secrets & environment
