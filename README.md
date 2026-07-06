@@ -38,8 +38,8 @@ Phase 5 progress:
 Day 38 → VPS setup                  ✅ Done
 Day 39 → Manual VPS deploy          ✅ Done
 Day 40 → Domain + HTTPS             ✅ Done
-Day 41 → CI/CD auto-deploy          ⏭️ Next
-Day 42 → Monitoring + logging
+Day 41 → CI/CD auto-deploy          ✅ Done
+Day 42 → Monitoring + logging       ⏭️ Next
 Day 43 → Backups
 Day 44 → AWS/cloud migration intro
 Day 45 → Final demo prep
@@ -79,8 +79,9 @@ Day 45 → Final demo prep
 - [x] Documentation polish with architecture diagrams
 - [x] VPS setup preparation: server hardening, Docker, firewall
 - [x] Manual VPS deployment (HTTP, port 80)
-- [ ] Live VPS deployment
+- [x] Live VPS deployment
 - [x] Domain + HTTPS (Let's Encrypt + HAProxy SNI)
+- [x] CI/CD auto-deploy with GitHub Actions
 - [ ] Monitoring and backups
 - [ ] Playlists
 - [ ] Favorite/liked songs
@@ -382,8 +383,8 @@ Phase 5, Deployment & Cloud, is in progress:
 - ✅ Day 38 — VPS setup: server hardening, Docker, firewall
 - ✅ Day 39 — Manual VPS deploy
 - ✅ Day 40 — Domain + HTTPS (Let's Encrypt + HAProxy SNI) — [`docs/https-haproxy.md`](./docs/https-haproxy.md)
-- ⏭️ Day 41 — CI/CD auto-deploy to VPS
-- ⬜ Day 42 — Monitoring and logging basics
+- ✅ Day 41 — CI/CD auto-deploy to VPS
+- ⏭️ Day 42 — Monitoring and logging basics
 - ⬜ Day 43 — Database and media backups
 - ⬜ Day 44 — AWS/cloud migration intro
 - ⬜ Day 45 — Final demo prep and interview walkthrough
@@ -391,6 +392,14 @@ Phase 5, Deployment & Cloud, is in progress:
 The deployment plan starts with a VPS-based production environment and later
 moves toward cloud deployment concepts such as managed storage, managed
 databases, monitoring, and automated delivery.
+
+### CI/CD Pipeline
+
+Every push to `main` automatically:
+Push to main → Test (pytest) → Deploy (SSH + git reset + scripts/deploy.sh) → Verify (HTTPS health)
+All deploy logic lives in `scripts/deploy.sh`, which is called identically by
+both manual SSH sessions and automated CI runs. See
+[`docs/cicd-deploy.md`](./docs/cicd-deploy.md) for details.
 
 ---
 
@@ -624,6 +633,7 @@ Common commands:
 | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | System diagrams and architecture decisions |
 | [`docs/deployment.md`](./docs/deployment.md) | VPS setup and deployment steps |
 | [`docs/env-management.md`](./docs/env-management.md) | Environment variables and secrets |
+| [`docs/cicd-deploy.md`](./docs/cicd-deploy.md) | CI/CD auto-deploy workflow with GitHub Actions |
 | [`docs/security.md`](./docs/security.md) | Security pass documentation |
 | [`docs/performance.md`](./docs/performance.md) | Performance pass documentation |
 | [`docs/smoke-tests.md`](./docs/smoke-tests.md) | Production smoke test documentation |
@@ -653,7 +663,6 @@ Common commands:
 
 ### Next
 
-- [ ] Day 41 — CI/CD auto-deploy to VPS
 - [ ] Day 42 — Monitoring and logging basics
 - [ ] Day 43 — Database and media backups
 - [ ] Day 44 — AWS/cloud migration intro
@@ -674,6 +683,9 @@ This project demonstrates:
 - Using Redis for both caching and as a broker
 - Optimizing a read-heavy feed
 - Writing backend and frontend automated tests
+- Separating deploy logic from CI/CD orchestration (deploy.sh is caller-agnostic)
+- Using SSH key-per-caller for fine-grained CI permissions
+- Three-job CI pipeline: test gate → deploy → health verify
 - Using Docker Compose for reproducible environments
 - Hardening production configuration
 - Deploying to a VPS with Docker Compose

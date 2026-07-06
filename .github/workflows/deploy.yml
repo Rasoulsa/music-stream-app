@@ -1,0 +1,140 @@
+name: Deploy to VPS
+
+# -----------------------------------------------------------------------------
+# Triggers:
+#   - Automatic: every push to main
+#   - Manual: Actions tab → "Run workflow"
+# -----------------------------------------------------------------------------
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Belt-and-suspenders with deploy.sh's own flock lock:
+# CI won't start a second deploy while one is already running.
+concurrency:
+  group: vps-deploy
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Test gate — never deploy broken code
+  # ---------------------------------------------------------------------------
+  test:
+    name: Test gate
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: musicdb
+          POSTGRES_USER: musicuser
+          POSTGRES_PASSWORD: musicuser123
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U musicuser -d musicdb"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Run backend tests
+        working-directory: backend
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5433
+          POSTGRES_DB: musicdb
+          POSTGRES_USER: musicuser
+          POSTGRES_PASSWORD: musicuser123
+        run: uv run pytest -v --ds=config.settings.ci --no-cov --create-db
+
+  # ---------------------------------------------------------------------------
+  # 2. Deploy — SSH into VPS and run the existing scripts/deploy.sh
+  #
+  # No deploy logic lives here. All real behavior (env validation,
+  # port pre-flight, health waits, nginx refresh, smoke checks) is in
+  # scripts/deploy.sh — shared by manual and CI runs identically.
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Deploy to VPS
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          # Write the CI deploy private key
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Pre-seed known_hosts to satisfy StrictHostKeyChecking
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Run remote deploy
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_APP_DIR: ${{ secrets.VPS_APP_DIR }}
+        run: |
+          # Pass VPS_APP_DIR as argument $1 to avoid shell quoting issues
+          # with the heredoc. <<'ENDSSH' means nothing is expanded by the
+          # GitHub Actions runner — everything runs on the remote VPS shell.
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=yes \
+            "${VPS_USER}@${VPS_HOST}" bash -s -- "${VPS_APP_DIR}" <<'ENDSSH'
+          set -euo pipefail
+          APP_DIR="$1"
+          cd "$APP_DIR"
+          echo "==> Syncing to origin/main..."
+          git fetch --all --prune
+          git checkout main
+          git reset --hard origin/main
+          echo "==> Commit: $(git rev-parse --short HEAD)"
+          echo "==> Running deploy..."
+          bash scripts/deploy.sh
+          ENDSSH
+
+  # ---------------------------------------------------------------------------
+  # 3. Verify — hit the public HTTPS health endpoint from outside the VPS
+  #    Confirms HAProxy → nginx → backend is fully working end-to-end.
+  # ---------------------------------------------------------------------------
+  verify:
+    name: Verify health
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Public HTTPS health check
+        env:
+          HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
+        run: |
+          echo "Checking ${HEALTHCHECK_URL}..."
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS "${HEALTHCHECK_URL}" >/dev/null; then
+              echo "✅ Health OK — deploy complete"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "❌ Health check failed after retries"
+          exit 1

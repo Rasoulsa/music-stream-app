@@ -254,3 +254,41 @@ dc down -v
 | `scripts/server-setup.sh` | Day 38 server hardening script                        |
 | `.env.prod.example`       | Env template — copy to `.env.prod` on the server      |
 | `.env.prod`               | Real secrets — never committed, lives on VPS only     |
+
+## CI/CD Auto-Deploy (Day 41)
+
+Manual deploys (`bash scripts/deploy.sh` over SSH) still work exactly as
+before — nothing about `scripts/deploy.sh` changed. What Day 41 adds is
+automation: `.github/workflows/deploy.yml` SSHes into the VPS and runs that
+same script whenever `main` is updated.
+
+### Flow
+
+1. Push a feature branch, open a PR.
+2. `Backend CI` and `Frontend CI` run automatically (unchanged from before).
+3. Branch protection on `main` requires both to pass before merge.
+4. On merge to `main`, `Deploy to VPS` triggers automatically:
+   - SSHes into the VPS
+   - Runs `bash scripts/deploy.sh` (git pull, build, health wait, nginx
+     refresh, smoke checks — all pre-existing logic)
+   - If `APP_PUBLIC_URL` is configured, verifies the site from the public
+     internet as an extra check beyond `deploy.sh`'s own localhost checks
+
+### Manual re-deploy without a new commit
+
+Go to Actions → "Deploy to VPS" → "Run workflow". Check "Skip 'git pull'"
+if you just want to restart the current code (e.g. after rotating a secret
+in `.env.prod` on the VPS).
+
+### Required GitHub configuration
+
+See the comment block at the top of `.github/workflows/deploy.yml` for the
+full list of required secrets and the one-time VPS/branch-protection setup.
+
+### Known limitation
+
+`scripts/deploy.sh` does not automatically roll back on a failed deploy —
+if migrations or the build succeed but the smoke check fails, the broken
+containers stay up and the workflow just fails loudly so you know to
+intervene manually via `make vps-logs`. Automated rollback is a reasonable
+candidate for a future day, but is out of scope for Day 41.

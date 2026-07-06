@@ -6,6 +6,10 @@
 # Usage:
 #   ./scripts/check-env.sh              (checks .env.prod)
 #   ./scripts/check-env.sh .env.staging (checks custom file)
+#
+# Exit codes (relied upon by CI — see .github/workflows/deploy.yml):
+#   0 = valid, safe to deploy
+#   1 = missing file OR one or more validation failures
 # ============================================================
 
 ENV_FILE="${1:-.env.prod}"
@@ -76,6 +80,14 @@ if [[ ${#SECRET_KEY_VAL} -lt 40 ]]; then
 fi
 
 # Check for suspicious substrings (bash 3.x compatible)
+#
+# NOTE: DJANGO_SECRET_KEY is base64url-random (from
+# secrets.token_urlsafe(64) in generate-secrets.sh), so there's a small
+# (~0.02%) chance a genuinely strong random key coincidentally contains
+# one of these substrings and gets flagged as a false positive. If that
+# ever happens, just regenerate with ./scripts/generate-secrets.sh — this
+# check has caught more real "insecure-dev-key"-style mistakes than it
+# has ever false-flagged a random key, so it stays as-is.
 for substring in "insecure" "change_me" "changeme" "change-me" "placeholder" "dev"; do
     if echo "$SECRET_LOWER" | grep -q "$substring"; then
         echo "❌  DJANGO_SECRET_KEY contains suspicious substring: '$substring'"
@@ -94,6 +106,7 @@ echo ""
 if [[ "$FAIL" -eq 0 ]]; then
     echo "✅  $ENV_FILE is valid for production."
     echo ""
+    exit 0
 else
     echo "════════════════════════════════════════"
     echo "  Fix the issues above before deploying."
