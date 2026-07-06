@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # =============================================================
-# scripts/deploy.sh — Manual VPS deploy for Music Stream App
+# scripts/deploy.sh — Manual + CI VPS deploy for Music Stream App
 # =============================================================
 #
 # Steps:
-#   1. Validate env file exists
+#   0. Acquire a deploy lock (prevents two deploys running at once —
+#      see Day 41 note below)
+#   1. Validate env file exists AND passes full check-env.sh validation
 #   2. Pre-flight: X Service on :443 must stay untouched
 #   3. Pre-flight: App Nginx bind port must be free OR already owned by app nginx
 #   4. Pull latest code from current branch
@@ -22,6 +24,20 @@
 # Phase II note:
 #   When HAProxy is introduced on Day 40, set in .env.prod:
 #     NGINX_HTTP_BIND=127.0.0.1:8444
+#
+# Day 41 note (CI/CD auto-deploy):
+#   This script now has TWO callers: you, running it manually over SSH,
+#   and GitHub Actions (.github/workflows/deploy.yml), running it
+#   automatically on every push to main. Two changes support that:
+#     - A flock-based lock (section 0) so a manual run and an automated
+#       run can never execute concurrently and race each other.
+#     - Full scripts/check-env.sh validation (not just "file exists") in
+#       section 1, so BOTH callers get the same safety net — previously
+#       only a separate CI step had the strong check; now it's here once,
+#       for everyone, which is the whole point of having one script.
+#   ANSI colors are also now skipped automatically when stdout isn't a
+#   real terminal (e.g. inside a GitHub Actions log), so CI logs don't
+#   fill up with raw escape codes like \033[0;32m.
 #
 # Usage:
 #   bash scripts/deploy.sh
@@ -41,6 +57,12 @@ HTTP_RETRY_SLEEP=3
 
 HEALTH_ENDPOINT="http://localhost/api/health/"
 NGINX_HEALTH="http://localhost/healthz"
+
+# Day 41: lock file + fd used to serialize deploys. A fixed path under
+# /tmp is fine here — this app has exactly one deploy target (this VPS),
+# so there's no risk of colliding with some other project's lock.
+LOCK_FILE="/tmp/music-stream-app.deploy.lock"
+LOCK_FD=200
 
 COMPOSE_FILES=(
   -f docker-compose.yml
@@ -69,12 +91,24 @@ for arg in "$@"; do
 done
 
 # ── Colors ────────────────────────────────────────────────────
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
+# Day 41: only enable ANSI colors when attached to a real terminal.
+# GitHub Actions' SSH log output is not a tty, so without this check
+# every line would be prefixed with raw \033[...m escape sequences.
+if [[ -t 1 ]]; then
+  GREEN='\033[0;32m'
+  YELLOW='\033[1;33m'
+  RED='\033[0;31m'
+  CYAN='\033[0;36m'
+  BOLD='\033[1m'
+  NC='\033[0m'
+else
+  GREEN=''
+  YELLOW=''
+  RED=''
+  CYAN=''
+  BOLD=''
+  NC=''
+fi
 
 info()    { echo -e "${GREEN}[INFO]${NC}  $*"; }
 warn()    { echo -e "${YELLOW}[WARN]${NC}  $*"; }
@@ -222,6 +256,26 @@ refresh_app_nginx() {
 }
 
 # ══════════════════════════════════════════════════════════════
+section "0 — Acquiring deploy lock"
+# ══════════════════════════════════════════════════════════════
+# Day 41: opens (or creates) the lock file on a dedicated file
+# descriptor, then tries a non-blocking exclusive flock on it.
+# If another deploy (manual OR CI-triggered) is already holding it,
+# this fails immediately with a clear message instead of racing it.
+# The lock is released automatically when this script's process exits,
+# for any reason — success, failure, or Ctrl-C.
+exec 200>"$LOCK_FILE"
+
+if ! flock -n "$LOCK_FD"; then
+  error "Another deploy is already in progress (lock: $LOCK_FILE)."
+  error "If you're sure nothing is actually running, remove the lock file:"
+  error "  rm -f $LOCK_FILE"
+  exit 1
+fi
+
+info "Lock acquired ✓"
+
+# ══════════════════════════════════════════════════════════════
 section "1 / 8 — Validating environment"
 # ══════════════════════════════════════════════════════════════
 if [[ ! -f "$ENV_FILE" ]]; then
@@ -231,6 +285,17 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 info "Found $ENV_FILE ✓"
+
+# Day 41: run the FULL validation (placeholder values, DEBUG=true guard,
+# secret-key length/entropy, wildcard ALLOWED_HOSTS), not just an
+# existence check. This used to only run as a separate step in CI —
+# it's here now so a manual `bash scripts/deploy.sh` gets the exact
+# same protection as an automated one.
+if ! bash "$PROJECT_DIR/scripts/check-env.sh" "$ENV_FILE"; then
+  error "$ENV_FILE failed validation (see output above)."
+  error "Fix the issues, or run: ./scripts/generate-secrets.sh"
+  exit 1
+fi
 
 # ══════════════════════════════════════════════════════════════
 section "2 / 8 — Port pre-flight checks"
@@ -390,6 +455,3 @@ echo -e "   App:      ${CYAN}http://${VPS_IP}/${NC}"
 echo -e "   API:      ${CYAN}http://${VPS_IP}/api/v1/${NC}"
 echo -e "   Docs:     ${CYAN}http://${VPS_IP}/api/docs/${NC}"
 echo -e "   Health:   ${CYAN}http://${VPS_IP}/api/health/${NC}"
-echo ""
-echo -e "   ${YELLOW}Next: Day 40 — HAProxy + HTTPS + domain${NC}"
-echo ""

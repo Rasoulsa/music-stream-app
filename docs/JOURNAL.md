@@ -1252,3 +1252,61 @@ Internet :443
 - Add the HAProxy SNI route and reload HAProxy.
 - Verify public HTTPS in the browser.
 - Enable `DJANGO_SECURE_SSL=true` only after HTTPS works.
+
+## Day 41 — CI/CD Auto-Deploy to VPS
+
+### Goal
+Automate deployment so every merge to `main` ships to the VPS without a
+manual SSH session, while reusing the existing deploy script rather than
+duplicating its logic in CI.
+
+### What I did
+
+- Added `.github/workflows/deploy.yml`: SSHes into the VPS on every push to
+  `main` and runs the existing `scripts/deploy.sh` unchanged.
+- Added `workflow_dispatch` with a `skip_pull` input for manual re-deploys
+  (e.g. after rotating a secret in `.env.prod` without a new commit).
+- Added an optional external health check step that verifies the public
+  domain after deploy, catching HAProxy/DNS/TLS issues that `deploy.sh`'s
+  own localhost-only smoke checks structurally cannot see.
+- Set `concurrency: cancel-in-progress: false` so an in-flight deploy can
+  never be cancelled mid-`docker compose up --build`, which could leave the
+  VPS half-upgraded.
+- Documented required secrets, the branch-protection prerequisite, and the
+  known rollback limitation in `docs/deployment.md`.
+
+### Technical decisions
+
+- Did NOT rewrite `scripts/deploy.sh` or move to a registry-based
+  (build-and-push-image) deploy strategy. The existing build-in-place
+  approach with pre-flight port checks, health polling, and nginx refresh
+  already works and is well-tested manually across Days 38-40 — CI just
+  needed to call it.
+- Chose "push to main triggers deploy" over "workflow_run gating on two
+  separate CI workflows" — simpler to read and reason about, at the cost of
+  depending on branch protection actually being configured to require
+  Backend CI + Frontend CI before merge. Documented this dependency clearly
+  since it's easy to silently disable by accident.
+- Used a GitHub Actions "Variable" (not secret) for the public health-check
+  URL since it's not sensitive data.
+
+### What I learned
+
+- The difference between GitHub Secrets and Variables, and when a value
+  (like a public URL) belongs in the latter.
+- Why `cancel-in-progress: false` matters specifically for deploy workflows,
+  as opposed to CI/test workflows where cancelling a superseded run is safe.
+- Why a localhost-only health check (inside the VPS) and a public health
+  check (over the internet) catch different failure classes — the first
+  proves the app is running; the second proves the whole edge path
+  (DNS → HAProxy → TLS → nginx → app) works.
+
+### Related docs
+
+- [`deployment.md`](./deployment.md) — full CI/CD auto-deploy flow.
+- [`https-haproxy.md`](./https-haproxy.md) — the edge path the public
+  health check exercises.
+
+### Next step
+
+- Day 42 — Monitoring and logging basics.

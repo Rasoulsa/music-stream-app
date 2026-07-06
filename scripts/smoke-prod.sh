@@ -118,15 +118,25 @@ echo ""
 # ── 4. Auth + database flow ──────────────────────────────────
 echo "  [4/10] Auth + Database Flow"
 divider
-RAND=$RANDOM
+
+# FIX: widened entropy beyond bare $RANDOM (0-32767). Combining epoch
+# seconds + this script's own PID + $RANDOM makes a same-second
+# collision across repeated manual runs effectively impossible, so
+# "register new user" below can't spuriously fail because a prior
+# smoke run already claimed the same username.
+RAND="$(date +%s)_$$_${RANDOM}"
 USERNAME="smoke_${RAND}"
 EMAIL="smoke_${RAND}@test.com"
 PASSWORD="TestPass123!"
 
 # Register
+# FIX: removed "password2" — RegisterSerializer (backend/music/serializers.py)
+# only declares id/username/email/password. DRF silently drops unknown
+# keys, so this wasn't breaking anything, but it falsely implied the API
+# requires password confirmation. Payload now matches the real contract.
 REG=$(curl -s -X POST "$BASE/api/v1/auth/register/" \
   -H "Content-Type: application/json" \
-  -d "{\"username\":\"$USERNAME\",\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"password2\":\"$PASSWORD\"}")
+  -d "{\"username\":\"$USERNAME\",\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")
 check "register new user" \
   "echo '$REG' | python3 -c \"import sys,json; d=json.load(sys.stdin); exit(0 if any(k in d for k in ['username','access','id']) else 1)\""
 
@@ -202,7 +212,9 @@ check "nginx version hidden" \
 echo ""
 
 # ── 7. Environment & secrets ──────────────────────────────────
-echo "  [7/9] Environment & Secrets"
+# FIX: was mislabeled "[7/9]" — every other section correctly says
+# "/10" (there are 10 sections total). Cosmetic only.
+echo "  [7/10] Environment & Secrets"
 divider
 check ".env.prod        exists and non-empty"   "test -s .env.prod"
 check ".env.prod        git-ignored"            "git check-ignore -q .env.prod"
@@ -212,8 +224,13 @@ check ".env.dev.example IN git"                 "git ls-files --error-unmatch .e
 check "scripts/check-env.sh  exists + runnable" "test -x scripts/check-env.sh"
 check "scripts/smoke-prod.sh exists + runnable" "test -x scripts/smoke-prod.sh"
 check "DJANGO_SETTINGS_MODULE=production"       "grep -q 'config.settings.production' .env.prod"
-check "DEBUG=False in .env.prod"                "grep -q '^DEBUG=False' .env.prod"
-check "SECRET_KEY set (>20 chars)"              "grep -E '^SECRET_KEY=.{20,}' .env.prod"
+# FIX: real .env.prod.example uses lowercase "DEBUG=false" (verified),
+# not "DEBUG=False". The old check could never match the actual file.
+check "DEBUG=false in .env.prod"                "grep -q '^DEBUG=false' .env.prod"
+# FIX: real .env.prod.example uses "DJANGO_SECRET_KEY=" (verified), not
+# "SECRET_KEY=". The old check was anchored to a variable name this
+# project doesn't use, so it could never validate the real secret key.
+check "DJANGO_SECRET_KEY set (>20 chars)"       "grep -E '^DJANGO_SECRET_KEY=.{20,}' .env.prod"
 check "docs/env-management.md exists"           "test -f docs/env-management.md"
 echo ""
 
@@ -307,6 +324,24 @@ else
   fi
 
   rm -f "$E2E_AUDIO" 2>/dev/null
+
+  # NEW: cleanup the test USER too, not just the song.
+  # There's no user-delete endpoint in the API (MyProfileView only
+  # supports GET/PATCH — verified in backend/music/views.py), so this
+  # goes straight through the Django ORM inside the backend container,
+  # the same way deploy.sh already runs one-off management commands.
+  # This is deliberately best-effort and non-fatal: if it fails, it's
+  # reported as informational only, never as a FAIL, since it's cleanup
+  # of test data, not a check of the app itself.
+  if docker exec music-backend /app/.venv/bin/python manage.py shell -c "
+from django.contrib.auth import get_user_model
+get_user_model().objects.filter(username='${USERNAME}').delete()
+" >/dev/null 2>&1; then
+    echo "  ✅  cleanup: deleted test user '$USERNAME'"
+  else
+    echo "  ⚠️   cleanup: could not delete test user '$USERNAME' — remove manually"
+    info "python manage.py shell -c \"from django.contrib.auth import get_user_model; get_user_model().objects.filter(username='$USERNAME').delete()\""
+  fi
 fi
 echo ""
 
