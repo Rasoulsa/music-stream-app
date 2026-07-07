@@ -649,7 +649,7 @@ restricted networks, NTP may fail because UDP/123 traffic is blocked. For that
 case, the project includes an optional HTTPS-based fallback time sync runner.
 
 See:
-- [Operations](docs/operations.md)
+- [Fallback HTTPS Time Synchronization](docs/operations.md#fallback-https-time-synchronization)
 
 Quick install/update:
 
@@ -751,7 +751,7 @@ Common commands:
 | [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Contribution workflow |
 | [`docs/https-haproxy.md`](./docs/https-haproxy.md) | HTTPS with Let's Encrypt + HAProxy SNI |
 | [`docs/monitoring.md`](./docs/monitoring.md) | Monitoring, metrics, logging, and alerting |
-| [Operations](docs/operations.md) — deployment operations, monitoring notes, and restricted-network HTTPS time sync fallback |
+| [Fallback HTTPS Time Synchronization](docs/operations.md#fallback-https-time-synchronization) — deployment operations, monitoring notes, and restricted-network HTTPS time sync fallback |
 
 ---
 

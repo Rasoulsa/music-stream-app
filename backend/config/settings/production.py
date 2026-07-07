@@ -18,6 +18,23 @@ from .base import env  # noqa: F401
 DEBUG = False
 
 # -----------------------------------------------------------------------------
+# Silence system checks that are intentionally handled at the nginx/proxy layer
+# -----------------------------------------------------------------------------
+#
+# These security headers are set by the Nginx edge proxy, not Django:
+#   W002 — X-Frame-Options       → nginx: add_header X-Frame-Options DENY
+#   W006 — X-Content-Type-Options → nginx: add_header X-Content-Type-Options nosniff
+#   W022 — Referrer-Policy        → nginx: add_header Referrer-Policy ...
+#
+# Setting them in Django would create duplicate headers on proxied responses.
+# Silencing here documents this is a deliberate architectural decision.
+SILENCED_SYSTEM_CHECKS = [
+    "security.W002",
+    "security.W006",
+    "security.W022",
+]
+
+# -----------------------------------------------------------------------------
 # Fail-loud guard
 # -----------------------------------------------------------------------------
 _INSECURE_KEYS = {
