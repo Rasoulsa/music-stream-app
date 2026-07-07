@@ -10,34 +10,6 @@ info:
   license:
     name: MIT
 paths:
-  /api/health/:
-    get:
-      operationId: api_health_retrieve
-      description: Returns the service status and cache health. Used by load balancers,
-        Docker healthchecks, and monitoring.
-      summary: Health check
-      tags:
-      - health
-      security:
-      - jwtAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: ok
-                  service:
-                    type: string
-                    example: music-stream-app
-                  cache:
-                    type: string
-                    example: ok
-          description: ''
   /api/v1/auth/register/:
     post:
       operationId: auth_register_create
@@ -47,7 +19,7 @@ paths:
         Creates a new user account with username, email, and password.
         After registration, the user can log in using the JWT login endpoint.
       tags:
-      - aut
+      - auth
       requestBody:
         content:
           application/json:
@@ -73,11 +45,11 @@ paths:
   /api/v1/auth/login/:
     post:
       operationId: auth_login_create
-      description: |-
-        Takes a set of user credentials and returns an access and refresh JSON web
-        token pair to prove the authentication of those credentials.
+      description: Returns the service status and cache health. Used by load balancers,
+        Docker healthchecks, and monitoring.
+      summary: Health check
       tags:
-      - auth
+      - health
       requestBody:
         content:
           application/json:
@@ -95,7 +67,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenObtainPair'
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: music-stream-app
+                  cache:
+                    type: string
+                    example: ok
           description: ''
   /api/v1/auth/refresh/:
     post:
@@ -322,48 +304,6 @@ paths:
                 $ref: '#/components/schemas/PaginatedSongList'
           description: ''
   /api/v1/songs/:
-    post:
-      operationId: songs_create
-      description: |-
-        API endpoint for managing songs.
-
-        Provides list, create, retrieve, update, and delete operations.
-        Supports multipart uploads for audio files and cover images.
-
-        Visibility rules:
-        - Anonymous users can see only public songs.
-        - Authenticated users can see public songs plus their own private songs.
-        - Only authenticated users can create songs.
-        - Only the owner of a song can update or delete it.
-
-        Query parameters:
-        - search: free-text search across title, artist, and album
-        - artist: filter by artist (partial, case-insensitive)
-        - album: filter by album (partial, case-insensitive)
-        - min_duration / max_duration: filter by duration in seconds
-        - is_public: filter by visibility
-        - ordering: sort by title, artist, duration_seconds, or created_at
-          (prefix with '-' for descending)
-      tags:
-      - songs
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/SongRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/SongRequest'
-        required: true
-      security:
-      - jwtAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Song'
-          description: ''
     get:
       operationId: songs_list
       description: |-
@@ -437,9 +377,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedSongList'
           description: ''
-  /api/v1/songs/{id}/:
-    delete:
-      operationId: songs_destroy
+    post:
+      operationId: songs_create
       description: |-
         API endpoint for managing songs.
 
@@ -460,22 +399,29 @@ paths:
         - is_public: filter by visibility
         - ordering: sort by title, artist, duration_seconds, or created_at
           (prefix with '-' for descending)
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this Song.
-        required: true
       tags:
       - songs
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SongRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SongRequest'
+        required: true
       security:
       - jwtAuth: []
       responses:
-        '204':
-          description: No response body
-    put:
-      operationId: songs_update
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Song'
+          description: ''
+  /api/v1/songs/{id}/:
+    patch:
+      operationId: songs_partial_update
       description: |-
         API endpoint for managing songs.
 
@@ -509,11 +455,10 @@ paths:
         content:
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/SongRequest'
+              $ref: '#/components/schemas/PatchedSongRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/SongRequest'
-        required: true
+              $ref: '#/components/schemas/PatchedSongRequest'
       security:
       - jwtAuth: []
       responses:
@@ -564,8 +509,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Song'
           description: ''
-    patch:
-      operationId: songs_partial_update
+    put:
+      operationId: songs_update
       description: |-
         API endpoint for managing songs.
 
@@ -599,10 +544,11 @@ paths:
         content:
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedSongRequest'
+              $ref: '#/components/schemas/SongRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedSongRequest'
+              $ref: '#/components/schemas/SongRequest'
+        required: true
       security:
       - jwtAuth: []
       responses:
@@ -612,6 +558,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/Song'
           description: ''
+    delete:
+      operationId: songs_destroy
+      description: |-
+        API endpoint for managing songs.
+
+        Provides list, create, retrieve, update, and delete operations.
+        Supports multipart uploads for audio files and cover images.
+
+        Visibility rules:
+        - Anonymous users can see only public songs.
+        - Authenticated users can see public songs plus their own private songs.
+        - Only authenticated users can create songs.
+        - Only the owner of a song can update or delete it.
+
+        Query parameters:
+        - search: free-text search across title, artist, and album
+        - artist: filter by artist (partial, case-insensitive)
+        - album: filter by album (partial, case-insensitive)
+        - min_duration / max_duration: filter by duration in seconds
+        - is_public: filter by visibility
+        - ordering: sort by title, artist, duration_seconds, or created_at
+          (prefix with '-' for descending)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Song.
+        required: true
+      tags:
+      - songs
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
 components:
   schemas:
     PaginatedSongList:
@@ -642,6 +624,10 @@ components:
       description: Own profile (authenticated user) — includes email + total song
         count.
       properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
         display_name:
           type: string
           maxLength: 80
@@ -660,6 +646,7 @@ components:
           type: string
         artist:
           type: string
+          minLength: 1
         is_public:
           type: boolean
           description: If true, the song is visible in the public feed. If false,
@@ -693,7 +680,6 @@ components:
         email:
           type: string
           format: email
-          readOnly: true
         display_name:
           type: string
           maxLength: 80
@@ -717,7 +703,6 @@ components:
           readOnly: true
       required:
       - created_at
-      - email
       - song_count
       - updated_at
       - username
@@ -859,6 +844,7 @@ components:
           type: string
         artist:
           type: string
+          minLength: 1
         is_public:
           type: boolean
           description: If true, the song is visible in the public feed. If false,
@@ -896,18 +882,6 @@ components:
         * `processing` - Processing
         * `ready` - Ready
         * `failed` - Failed
-    TokenObtainPair:
-      type: object
-      properties:
-        access:
-          type: string
-          readOnly: true
-        refresh:
-          type: string
-          readOnly: true
-      required:
-      - access
-      - refresh
     TokenObtainPairRequest:
       type: object
       properties:
