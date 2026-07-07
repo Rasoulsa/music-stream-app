@@ -79,7 +79,7 @@
 #     2. avoid duplicate host port bindings
 # -----------------------------------------------------------------------------
 DEV_PROJECT  ?= music-stream-dev
-PROD_PROJECT ?= music-stream-prod
+PROD_PROJECT ?= music-stream-app
 
 DEV  = docker compose --project-name $(DEV_PROJECT)  --env-file .env.dev  -f docker-compose.yml -f docker-compose.dev.yml
 PROD = docker compose --project-name $(PROD_PROJECT) --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml

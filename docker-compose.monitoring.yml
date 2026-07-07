@@ -13,7 +13,7 @@
 #     -f docker-compose.vps.yml \
 #     -f docker-compose.monitoring.yml \
 #     --env-file .env.prod \
-#     -p music-stream-prod up -d
+#     -p "${COMPOSE_PROJECT_NAME:-music-stream-app}" up -d
 # ============================================================
 
 x-logging: &default-logging

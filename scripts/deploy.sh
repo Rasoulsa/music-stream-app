@@ -136,7 +136,10 @@ if [[ "$WITH_MONITORING" == true ]]; then
   COMPOSE_FILES+=( -f docker-compose.monitoring.yml )
 fi
 
-COMPOSE_PROJECT="music-stream-prod"
+# Must match the existing VPS Compose project name to preserve production volumes.
+# The live VPS stack currently uses: music-stream-app
+COMPOSE_PROJECT="${COMPOSE_PROJECT_NAME:-music-stream-app}"
+export COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT"
 
 COMPOSE_CMD=(
   docker compose
@@ -199,7 +202,7 @@ compose_for_message() {
     files="$files -f docker-compose.monitoring.yml"
   fi
 
-  echo "docker compose -p music-stream-prod --env-file $ENV_FILE $files"
+  echo "docker compose -p $COMPOSE_PROJECT --env-file $ENV_FILE $files"
 }
 
 read_env_value() {
@@ -254,22 +257,22 @@ port_in_use() {
 }
 
 app_nginx_container_id() {
-  "${COMPOSE_CMD[@]}" ps -q nginx 2>/dev/null || true
+  docker ps \
+    --filter "label=com.docker.compose.project=${COMPOSE_PROJECT}" \
+    --filter "label=com.docker.compose.service=nginx" \
+    -q \
+    | head -n 1
 }
 
 app_nginx_owns_port() {
   local port="$1"
-  local cid
 
-  cid="$(app_nginx_container_id)"
-
-  if [[ -z "$cid" ]]; then
-    return 1
-  fi
-
-  docker inspect "$cid" \
-    --format '{{range $containerPort, $bindings := .NetworkSettings.Ports}}{{range $bindings}}{{if eq .HostPort "'"$port"'"}}yes{{end}}{{end}}{{end}}' \
-    2>/dev/null | grep -q "yes"
+  docker ps \
+    --filter "publish=${port}" \
+    --filter "label=com.docker.compose.project=${COMPOSE_PROJECT}" \
+    --filter "label=com.docker.compose.service=nginx" \
+    -q \
+    | grep -q .
 }
 
 backend_container_id() {
@@ -370,6 +373,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 info "Found $ENV_FILE ✓"
+info "Compose project: $COMPOSE_PROJECT"
 
 # Day 41: run the FULL validation (placeholder values, DEBUG=true guard,
 # secret-key length/entropy, wildcard ALLOWED_HOSTS), not just an

@@ -27,6 +27,7 @@ else
 fi
 
 ENV_FILE="${ENV_FILE:-${APP_DIR}/.env.prod}"
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-music-stream-app}"
 
 if [[ "${EUID}" -eq 0 ]]; then
   SUDO=""
@@ -87,7 +88,7 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 docker compose \\
-  --project-name music-stream-prod \\
+  --project-name "$COMPOSE_PROJECT_NAME" \\
   --env-file .env.prod \\
   -f docker-compose.yml \\
   -f docker-compose.prod.yml \\

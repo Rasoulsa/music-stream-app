@@ -9,7 +9,7 @@ set -uo pipefail
 
 BASE="${SMOKE_BASE_URL:-http://localhost}"
 
-COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-music-stream-prod}"
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-music-stream-app}"
 COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-.env.prod}"
 
 COMPOSE_CMD=(
