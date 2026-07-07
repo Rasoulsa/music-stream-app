@@ -10,6 +10,7 @@ import logging
 
 from django.core.cache import cache
 from django.db import connection
+from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import (
     api_view,
     authentication_classes,
@@ -44,6 +45,7 @@ def _check_cache() -> tuple[bool, str]:
         return False, "error"
 
 
+@extend_schema(exclude=True)
 @api_view(["GET"])
 @authentication_classes([])
 @permission_classes([AllowAny])
