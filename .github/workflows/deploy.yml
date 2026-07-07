@@ -98,6 +98,11 @@ jobs:
           POSTGRES_PASSWORD: musicuser123
         run: uv run pytest -v --ds=config.settings.ci --no-cov --create-db
 
+      - name: Prepare production env file for Compose validation
+        run: |
+          cp .env.prod.example .env.prod
+          echo "✅ Temporary .env.prod created from .env.prod.example for CI validation"
+
       - name: Validate production Compose config with monitoring
         run: |
           docker compose \
@@ -105,11 +110,11 @@ jobs:
             -f docker-compose.prod.yml \
             -f docker-compose.vps.yml \
             -f docker-compose.monitoring.yml \
-            --env-file .env.prod.example \
+            --env-file .env.prod \
             -p music-stream-prod \
             config >/dev/null
 
-          echo "✅ Production + monitoring Compose config is valid"
+            echo "✅ Production + monitoring Compose config is valid"
 
   # ---------------------------------------------------------------------------
   # 2. Deploy — manual only

@@ -366,5 +366,6 @@ See [`security.md`](./security.md).
 - [`env-management.md`](./env-management.md)
 - [`security.md`](./security.md)
 - [`performance.md`](./performance.md)
+- [Monitoring and logging](monitoring.md)
 - [`smoke-tests.md`](./smoke-tests.md)
 - [`JOURNAL.md`](./JOURNAL.md)
