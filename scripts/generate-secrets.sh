@@ -30,12 +30,14 @@ DJANGO_SECRET_KEY="$(python3 -c "import secrets; print(secrets.token_urlsafe(64)
 POSTGRES_PASSWORD="$(python3 -c "import secrets; print(secrets.token_hex(32))")"
 AWS_ACCESS_KEY_ID="$(python3 -c "import secrets; print(secrets.token_hex(10))")"
 AWS_SECRET_ACCESS_KEY="$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")"
+GRAFANA_ADMIN_PASSWORD="$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")"
 
 cat <<VALUES
 DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
 AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
 VALUES
 
 echo "══════════════════════════════════════════════" >&2

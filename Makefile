@@ -46,6 +46,17 @@
 #	make vps-prepare-https  	[VPS] Install certbot, create HTTPS dirs, install renewal hook
 # 	make vps-issue-cert VPS 	[VPS] Issue initial Let's Encrypt cert using standalone mode
 #
+#   make monitoring-up          [VPS] Start app + full monitoring stack
+#   make monitoring-down        [VPS] Stop monitoring containers only
+#   make monitoring-ps          [VPS] Show monitoring container status
+#   make monitoring-logs        [VPS] Follow monitoring logs
+#   make monitoring-reload      [VPS/local] Reload Prometheus config
+#
+#   make monitoring-up-local    [local] Start Prometheus + Grafana only
+#   make monitoring-down-local  [local] Stop Prometheus + Grafana only
+#   make monitoring-ps-local    [local] Show local monitoring status
+#   make monitoring-logs-local  [local] Follow local monitoring logs
+#
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -420,3 +431,85 @@ vps-prepare-https: ## VPS only: install certbot, create HTTPS dirs, install rene
 .PHONY: vps-issue-cert
 vps-issue-cert: ## VPS only: issue initial Let's Encrypt cert using standalone mode
 	./scripts/vps-issue-cert-standalone.sh
+
+# -----------------------------------------------------------------------------
+# Monitoring / Observability
+# -----------------------------------------------------------------------------
+#
+# VPS monitoring:
+#   Full production/VPS compose stack with Prometheus, Grafana, node_exporter,
+#   and cAdvisor.
+#
+# Local monitoring:
+#   macOS/dev-safe monitoring with Prometheus + Grafana only.
+#   This avoids Linux-host-specific node_exporter/cAdvisor behavior locally.
+#
+# Ports:
+#   Prometheus: 127.0.0.1:9090
+#   Grafana:    127.0.0.1:3001
+# -----------------------------------------------------------------------------
+
+MONITORING_PROJECT ?= $(PROD_PROJECT)
+
+MONITORING_VPS = docker compose \
+	--project-name $(MONITORING_PROJECT) \
+	--env-file .env.prod \
+	-f docker-compose.yml \
+	-f docker-compose.prod.yml \
+	-f docker-compose.vps.yml \
+	-f docker-compose.monitoring.yml
+
+MONITORING_LOCAL = docker compose \
+	--project-name $(MONITORING_PROJECT) \
+	--env-file .env.prod \
+	-f docker-compose.yml \
+	-f docker-compose.prod.yml \
+	-f docker-compose.monitoring.yml
+
+.PHONY: monitoring-up
+monitoring-up: ## [VPS] Start app + monitoring stack
+	@./scripts/check-env.sh .env.prod --with-monitoring
+	$(MONITORING_VPS) up -d --build
+
+.PHONY: monitoring-down
+monitoring-down: ## [VPS] Stop monitoring containers only; keep app running
+	$(MONITORING_VPS) stop prometheus grafana node_exporter cadvisor
+	$(MONITORING_VPS) rm -f prometheus grafana node_exporter cadvisor
+
+.PHONY: monitoring-ps
+monitoring-ps: ## [VPS] Show monitoring container status
+	$(MONITORING_VPS) ps prometheus grafana node_exporter cadvisor
+
+.PHONY: monitoring-logs
+monitoring-logs: ## [VPS] Follow monitoring logs
+	$(MONITORING_VPS) logs -f prometheus grafana node_exporter cadvisor
+
+.PHONY: monitoring-config
+monitoring-config: ## [VPS] Render final monitoring Compose config
+	$(MONITORING_VPS) config
+
+.PHONY: monitoring-reload
+monitoring-reload: ## [VPS/local] Hot-reload Prometheus config
+	curl -fsS -X POST http://localhost:9090/-/reload && echo "Prometheus reloaded"
+
+.PHONY: monitoring-up-local
+monitoring-up-local: ## [local] Start Prometheus + Grafana only
+	@./scripts/check-env.sh .env.prod --with-monitoring
+	$(MONITORING_LOCAL) up -d prometheus grafana
+
+.PHONY: monitoring-down-local
+monitoring-down-local: ## [local] Stop Prometheus + Grafana only
+	$(MONITORING_LOCAL) stop prometheus grafana
+	$(MONITORING_LOCAL) rm -f prometheus grafana
+
+.PHONY: monitoring-ps-local
+monitoring-ps-local: ## [local] Show local monitoring status
+	$(MONITORING_LOCAL) ps prometheus grafana
+
+.PHONY: monitoring-logs-local
+monitoring-logs-local: ## [local] Follow local monitoring logs
+	$(MONITORING_LOCAL) logs -f prometheus grafana
+
+.PHONY: monitoring-config-local
+monitoring-config-local: ## [local] Render local monitoring Compose config
+	$(MONITORING_LOCAL) config

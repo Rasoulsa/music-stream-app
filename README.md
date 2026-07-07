@@ -7,6 +7,7 @@
 ![Django](https://img.shields.io/badge/Django-5.1-green)
 ![React](https://img.shields.io/badge/React-TypeScript-61DAFB)
 ![Docker](https://img.shields.io/badge/Docker-Compose-blue)
+![Observability](https://img.shields.io/badge/Observability-Prometheus%20%2B%20Grafana-orange)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 A full-stack, dockerized music streaming application built as a professional
@@ -39,8 +40,8 @@ Day 38 → VPS setup                  ✅ Done
 Day 39 → Manual VPS deploy          ✅ Done
 Day 40 → Domain + HTTPS             ✅ Done
 Day 41 → CI/CD auto-deploy          ✅ Done
-Day 42 → Monitoring + logging       ⏭️ Next
-Day 43 → Backups
+Day 42 → Monitoring + logging       ✅ Done
+Day 43 → Backups                    ⏭️ Next
 Day 44 → AWS/cloud migration intro
 Day 45 → Final demo prep
 ```
@@ -82,7 +83,8 @@ Day 45 → Final demo prep
 - [x] Live VPS deployment
 - [x] Domain + HTTPS (Let's Encrypt + HAProxy SNI)
 - [x] CI/CD auto-deploy with GitHub Actions
-- [ ] Monitoring and backups
+- [x] Structured JSON logging with request ID tracing
+- [ ] Database and media backups
 - [ ] Playlists
 - [ ] Favorite/liked songs
 
@@ -109,6 +111,10 @@ Day 45 → Final demo prep
 | Linting / Formatting | Ruff, ESLint, Prettier |
 | Containerization | Docker, Docker Compose |
 | CI/CD | GitHub Actions |
+| Metrics | Prometheus, django-prometheus |
+| Dashboards | Grafana |
+| Exporters | node_exporter, cAdvisor |
+| Logging | Structured JSON with request ID tracing |
 | Deployment Target | VPS first, cloud later |
 
 ---
@@ -229,6 +235,19 @@ music-stream-app/
 |   |   └── default.conf
 |   ├── app-ssl.conf.template
 |   └── nginx.conf
+├── monitoring/
+│   ├── prometheus/
+│   │   ├── prometheus.yml
+│   │   └── rules/
+│   │       └── alerts.yml
+│   └── grafana/
+│       ├── provisioning/
+│       │   ├── datasources/
+│       │   │   └── prometheus.yml
+│       │   └── dashboards/
+│       │       └── dashboards.yml
+│       └── dashboards/
+│           └── app-overview.json
 ├── scripts/
 │   ├── check-env.sh
 │   ├── deploy.sh
@@ -242,6 +261,7 @@ music-stream-app/
 │   ├── deployment.md
 │   ├── https-haproxy.md
 │   ├── env-management.md
+│   ├── monitoring.md
 │   ├── performance.md
 │   ├── security.md
 │   ├── smoke-tests.md
@@ -250,6 +270,7 @@ music-stream-app/
 ├── docker-compose.dev.yml
 ├── docker-compose.prod.yml
 ├── docker-compose.vps.yml
+├── docker-compose.monitoring.yml
 ├── Makefile
 └── README.md
 ```
@@ -384,8 +405,8 @@ Phase 5, Deployment & Cloud, is in progress:
 - ✅ Day 39 — Manual VPS deploy
 - ✅ Day 40 — Domain + HTTPS (Let's Encrypt + HAProxy SNI) — [`docs/https-haproxy.md`](./docs/https-haproxy.md)
 - ✅ Day 41 — CI/CD auto-deploy to VPS
-- ⏭️ Day 42 — Monitoring and logging basics
-- ⬜ Day 43 — Database and media backups
+- ✅ Day 42 — Monitoring and logging basics
+- ⏭️ Day 43 — Database and media backups
 - ⬜ Day 44 — AWS/cloud migration intro
 - ⬜ Day 45 — Final demo prep and interview walkthrough
 
@@ -559,6 +580,67 @@ Implemented items include:
 
 ---
 
+## 📊 Observability
+
+Observability work is documented in:
+
+👉 [`docs/monitoring.md`](./docs/monitoring.md)
+
+The app ships a lightweight, VPS-friendly observability stack based on
+Prometheus and Grafana, plus structured logging.
+
+### Metrics
+
+- App metrics via `django-prometheus` (request rate, latency, status codes)
+- Host metrics via `node_exporter` (CPU, RAM, disk)
+- Per-container metrics via `cAdvisor`
+- Prometheus scrapes all targets every 15s and stores time-series
+- Grafana dashboards provisioned as code (datasource + overview dashboard)
+
+### Logging
+
+- Structured single-line JSON logs in production
+- Per-request `X-Request-ID` tracing across logs and response headers
+- Docker `json-file` log rotation (10MB × 3 files per container)
+
+### Health / readiness
+
+`GET /api/health/` is a readiness check that verifies the database and cache.
+It returns `200` when healthy and `503` when degraded, so load balancers and
+uptime monitors can react correctly.
+
+### Alerting
+
+Prometheus alert rules cover:
+
+- Target down (scrape failure)
+- High HTTP 5xx rate
+- High disk usage
+- High memory usage
+
+### Security
+
+Monitoring is never exposed publicly:
+
+- Prometheus (`:9090`) and Grafana (`:3000`) bind to `127.0.0.1` only
+- Accessed via SSH tunnel
+- `/metrics` returns `404` at the public Nginx edge
+
+### Usage
+
+```bash
+# Start app + monitoring stack
+make monitoring-up
+
+# Access Grafana via SSH tunnel, then open http://localhost:3000
+ssh -L 3000:localhost:3000 <vps-user>@<vps-host>
+
+# Access Prometheus via SSH tunnel, then open http://localhost:9090
+ssh -L 9090:localhost:9090 <vps-user>@<vps-host>
+```
+
+---
+
 ## ✅ Production Smoke Test
 
 The production smoke test validates the full stack:
@@ -623,6 +705,11 @@ Common commands:
 | `make vps-up` | Start VPS HTTPS stack |
 | `make vps-prepare-https` | VPS: install certbot, create dirs, renewal hook |
 | `make vps-issue-cert` | VPS: issue initial Let's Encrypt certificate |
+| `make monitoring-up` | Start app + monitoring stack (Prometheus, Grafana) |
+| `make monitoring-down` | Stop monitoring containers only (keeps app running) |
+| `make monitoring-ps` | Show monitoring container status |
+| `make monitoring-logs` | Follow monitoring stack logs |
+| `make monitoring-reload` | Hot-reload Prometheus config |
 
 ---
 
@@ -642,6 +729,7 @@ Common commands:
 | [`frontend/README.md`](./frontend/README.md) | Frontend developer guide |
 | [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Contribution workflow |
 | [`docs/https-haproxy.md`](./docs/https-haproxy.md) | HTTPS with Let's Encrypt + HAProxy SNI |
+| [`docs/monitoring.md`](./docs/monitoring.md) | Monitoring, metrics, logging, and alerting |
 
 ---
 
@@ -656,6 +744,7 @@ Common commands:
 - [x] Day 38 — VPS setup: server hardening, Docker, firewall
 - [x] Day 39 — Manual VPS deploy (HTTP, port 80)
 - [x] Day 40 — Domain + HTTPS with Let's Encrypt
+- [x] Day 42 — Monitoring and logging basics
 
 ### In Progress
 
@@ -663,7 +752,6 @@ Common commands:
 
 ### Next
 
-- [ ] Day 42 — Monitoring and logging basics
 - [ ] Day 43 — Database and media backups
 - [ ] Day 44 — AWS/cloud migration intro
 - [ ] Day 45 — Final demo prep and interview walkthrough
@@ -693,6 +781,12 @@ This project demonstrates:
 - Adding smoke tests for deployment confidence
 - Documenting architecture and engineering decisions
 - Serving HTTPS behind HAProxy SNI routing to coexist with another service on port 443
+- Instrumenting a Django app with Prometheus metrics (request rate, latency, errors)
+- Building Grafana dashboards provisioned as code
+- Collecting host and container metrics with node_exporter and cAdvisor
+- Structured JSON logging with per-request ID tracing for observability
+- Keeping monitoring private (localhost-bound, SSH tunnel, /metrics blocked at edge)
+- Designing readiness checks that verify real dependencies (db, cache)
 
 ---
 

@@ -170,21 +170,26 @@ CORS_ALLOWED_ORIGINS = env.list(  # noqa: F405
 )
 
 # -----------------------------------------------------------------------------
-# Logging → stdout (Docker / systemd captures it)
+# Logging → structured JSON to stdout (Docker captures it)
 # -----------------------------------------------------------------------------
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        "request_id": {
+            "()": "config.logging.RequestIDFilter",
+        },
+    },
     "formatters": {
-        "verbose": {
-            "format": "{levelname} {asctime} {name} {message}",
-            "style": "{",
+        "json": {
+            "()": "config.logging.JSONFormatter",
         },
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "verbose",
+            "formatter": "json",
+            "filters": ["request_id"],
         },
     },
     "root": {
@@ -193,6 +198,16 @@ LOGGING = {
     },
     "loggers": {
         "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "celery": {
             "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
