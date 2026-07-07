@@ -17,12 +17,13 @@ from drf_spectacular.views import (
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from music.views import RegisterView, ThrottledTokenObtainPairView, health_check
+from music.views import RegisterView, ThrottledTokenObtainPairView
+from music.views_health import health
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     # ── Health check (UNVERSIONED — infra/healthchecks) ─────────────
-    path("api/health/", health_check, name="health-check"),
+    path("api/health/", health, name="health-check"),
     # ── Authentication (versioned) ──────────────────────────────────
     path(
         "api/v1/auth/register/",
@@ -53,6 +54,8 @@ urlpatterns = [
         SpectacularRedocView.as_view(url_name="schema"),
         name="redoc",
     ),
+    # Prometheus metrics — protected at the edge (see nginx config).
+    path("", include("django_prometheus.urls")),  # exposes /metrics
 ]
 
 # Serve uploaded media files

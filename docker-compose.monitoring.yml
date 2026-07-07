@@ -1,0 +1,93 @@
+# ============================================================
+# Observability stack: Prometheus, Grafana, node_exporter, cAdvisor.
+#
+# Design:
+#   - Prometheus & Grafana bound to 127.0.0.1 only (never public).
+#   - Access Grafana & Prometheus via SSH tunnel:
+#       ssh -L 3001:127.0.0.1:3001 -L 9090:127.0.0.1:9090 <vps-user>@<vps-host>
+#   - Joins the app's external network so it can scrape backend:8000.
+#
+# Usage:
+#   docker compose \
+#     -f docker-compose.yml \
+#     -f docker-compose.vps.yml \
+#     -f docker-compose.monitoring.yml \
+#     --env-file .env.prod \
+#     -p music-stream-prod up -d
+# ============================================================
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: music-prometheus
+    restart: unless-stopped
+    logging: *default-logging
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    ports:
+      # Bind to localhost only — reach it via SSH tunnel.
+      - "127.0.0.1:${PROMETHEUS_HOST_PORT:-9090}:9090"
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: music-grafana
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env.prod}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: "http://localhost:${GRAFANA_HOST_PORT:-3001}/"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:${GRAFANA_HOST_PORT:-3001}:3000"
+
+  node_exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: music-node-exporter
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - "--path.rootfs=/host"
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    expose:
+      - "9100"
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: music-cadvisor
+    restart: unless-stopped
+    logging: *default-logging
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    expose:
+      - "8080"
+
+volumes:
+  prometheus_data:
+  grafana_data:

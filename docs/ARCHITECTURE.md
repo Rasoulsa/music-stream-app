@@ -22,19 +22,27 @@ graph TB
     end
 
     subgraph edge["Edge Layer"]
-        Nginx["Nginx<br/>reverse proxy"]
+        Nginx["Nginx<br/>Reverse Proxy"]
     end
 
     subgraph app["Application Layer"]
-        Frontend["Frontend container<br/>Vite build served by Nginx"]
-        Backend["Backend container<br/>Django + DRF + Gunicorn"]
-        Celery["Celery worker<br/>async audio tasks"]
+        Frontend["Frontend Container<br/>Vite build served by Nginx"]
+        Backend["Backend Container<br/>Django + DRF + Gunicorn"]
+        Celery["Celery Worker<br/>async audio tasks"]
     end
 
     subgraph data["Data Layer"]
-        Postgres[("PostgreSQL<br/>relational data")]
-        Redis[("Redis<br/>cache + broker")]
-        MinIO[("MinIO / S3<br/>object storage")]
+        Postgres[("PostgreSQL")]
+        Redis[("Redis<br/>Cache + Broker")]
+        RedisQueue["Redis Queue<br/>Celery task queue"]
+        MinIO[("MinIO / S3<br/>Media Storage")]
+    end
+
+    subgraph observability["Observability Layer"]
+        Prometheus["Prometheus<br/>127.0.0.1 only"]
+        NodeExporter["node_exporter<br/>host metrics"]
+        CAdvisor["cAdvisor<br/>container metrics"]
+        Grafana["Grafana<br/>127.0.0.1 only"]
     end
 
     Browser -->|HTTPS| Nginx
@@ -45,11 +53,17 @@ graph TB
     Backend --> Postgres
     Backend --> Redis
     Backend --> MinIO
-    Backend -->|enqueue tasks| Redis
+    Backend -->|enqueue tasks| RedisQueue
 
-    Celery -->|consume tasks| Redis
+    RedisQueue --> Redis
+    Celery -->|consume tasks| RedisQueue
     Celery --> Postgres
     Celery --> MinIO
+
+    Prometheus -->|scrapes /metrics| Backend
+    Prometheus -->|scrapes| NodeExporter
+    Prometheus -->|scrapes| CAdvisor
+    Grafana -->|queries| Prometheus
 ```
 
 **Why a single Nginx edge?**
@@ -57,6 +71,10 @@ graph TB
 One public entrypoint simplifies TLS, security headers, gzip, and routing.
 The browser only talks to Nginx. Internal services such as PostgreSQL, Redis,
 Celery, and MinIO are kept inside the Docker network.
+
+Prometheus scrapes application, host, and container metrics. Prometheus and
+Grafana are bound to `127.0.0.1` on the VPS and are accessed through an SSH
+tunnel instead of being exposed publicly.
 
 ---
 

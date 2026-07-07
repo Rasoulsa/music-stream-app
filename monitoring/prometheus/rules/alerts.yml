@@ -1,0 +1,59 @@
+# ============================================================
+# Alerting rules.
+#
+# These fire in Prometheus (visible under Alerts tab). Routing them to
+# Telegram/Slack requires Alertmanager (documented as a future step).
+# ============================================================
+
+groups:
+  - name: app-availability
+    rules:
+      - alert: TargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Target {{ $labels.job }} is down"
+          description: "{{ $labels.instance }} has been unreachable for 2m."
+
+      - alert: HighHTTP5xxRate
+        # More than 5% of requests are 5xx over the last 5 minutes.
+        expr: |
+          (
+            sum(rate(django_http_responses_total_by_status_total{status=~"5.."}[5m]))
+            /
+            sum(rate(django_http_responses_total_by_status_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High 5xx error rate"
+          description: "5xx error ratio is above 5% for 5m."
+
+  - name: host-resources
+    rules:
+      - alert: HighDiskUsage
+        expr: |
+          (
+            1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})
+          ) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk usage above 85%"
+          description: "Root filesystem is over 85% full."
+
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)
+          ) > 0.90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory usage above 90%"
+          description: "Host memory usage is over 90% for 5m."

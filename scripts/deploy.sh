@@ -25,23 +25,48 @@
 #   When HAProxy is introduced on Day 40, set in .env.prod:
 #     NGINX_HTTP_BIND=127.0.0.1:8444
 #
-# Day 41 note (CI/CD auto-deploy):
-#   This script now has TWO callers: you, running it manually over SSH,
-#   and GitHub Actions (.github/workflows/deploy.yml), running it
-#   automatically on every push to main. Two changes support that:
-#     - A flock-based lock (section 0) so a manual run and an automated
-#       run can never execute concurrently and race each other.
-#     - Full scripts/check-env.sh validation (not just "file exists") in
-#       section 1, so BOTH callers get the same safety net — previously
-#       only a separate CI step had the strong check; now it's here once,
-#       for everyone, which is the whole point of having one script.
-#   ANSI colors are also now skipped automatically when stdout isn't a
-#   real terminal (e.g. inside a GitHub Actions log), so CI logs don't
-#   fill up with raw escape codes like \033[0;32m.
+# Note (manual CI/CD deploy):
+#   This script has TWO callers:
+#     - you, running it manually over SSH
+#     - GitHub Actions (.github/workflows/deploy.yml), running it only when
+#       the production deployment workflow is manually triggered
+#
+#   The GitHub workflow still runs tests on PRs and pushes to main, but it does
+#   not deploy automatically after merge. Production deployment is intentionally
+#   manual and protected.
+#
+#   Two changes support safe deployments:
+#     - A flock-based lock (section 0) so a manual run and a GitHub Actions run
+#       can never execute concurrently and race each other.
+#     - Full scripts/check-env.sh validation in section 1, so both callers get
+#       the same safety checks.
+#
+#   ANSI colors are also skipped automatically when stdout is not a real
+#   terminal, so GitHub Actions logs stay clean.
 #
 # Usage:
 #   bash scripts/deploy.sh
 #   bash scripts/deploy.sh --skip-pull
+#   bash scripts/deploy.sh --with-monitoring
+#   bash scripts/deploy.sh --skip-pull --with-monitoring
+#   bash scripts/deploy.sh --skip-pull --no-vps
+#   bash scripts/deploy.sh --skip-pull --no-vps --with-monitoring
+#
+# --no-vps:
+#   Skips docker-compose.vps.yml (the HTTPS/SSL nginx overlay). Use this only
+#   for local testing on machines without Let's Encrypt certificates
+#   (e.g. macOS). On the VPS, never use --no-vps.
+#
+# Monitoring:
+#   By default, only the application stack is deployed.
+#   Use --with-monitoring to also start/update:
+#     - Prometheus
+#     - Grafana
+#     - node_exporter
+#     - cAdvisor
+#
+#   Prometheus and Grafana are bound to localhost on the VPS and should be
+#   accessed through SSH tunnels, not exposed publicly.
 # =============================================================
 
 set -euo pipefail
@@ -50,6 +75,8 @@ set -euo pipefail
 ENV_FILE=".env.prod"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKIP_PULL=false
+WITH_MONITORING=false
+NO_VPS=false
 
 BACKEND_HEALTH_RETRIES=40      # × 3s = 120s max wait
 HTTP_RETRIES=20                # × 3s = 60s max wait for HTTP smoke checks
@@ -67,14 +94,10 @@ LOCK_FD=200
 COMPOSE_FILES=(
   -f docker-compose.yml
   -f docker-compose.prod.yml
-  -f docker-compose.vps.yml
 )
 
-COMPOSE_CMD=(
-  docker compose
-  --env-file "$ENV_FILE"
-  "${COMPOSE_FILES[@]}"
-)
+# COMPOSE_CMD is finalized AFTER flag parsing, because --with-monitoring
+# appends an extra compose file. See the "Finalize compose command" block.
 
 # ── Flags ─────────────────────────────────────────────────────
 for arg in "$@"; do
@@ -82,13 +105,60 @@ for arg in "$@"; do
     --skip-pull)
       SKIP_PULL=true
       ;;
+    --with-monitoring)
+      WITH_MONITORING=true
+      ;;
+    --no-vps)
+      NO_VPS=true
+      ;;
     *)
       echo "Unknown argument: $arg"
-      echo "Usage: bash scripts/deploy.sh [--skip-pull]"
+      echo "Usage: bash scripts/deploy.sh [--skip-pull] [--with-monitoring] [--no-vps]"
       exit 1
       ;;
   esac
 done
+
+# ── Finalize compose command ──────────────────────────────────
+# Day 42: optionally include the observability stack (Prometheus,
+# Grafana, node_exporter, cAdvisor). Kept opt-in so normal app
+# deploys stay fast and don't require Grafana secrets to be set.
+# VPS overlay (HTTPS/SSL nginx) — enabled by default, skipped with --no-vps.
+if [[ "$NO_VPS" == true ]]; then
+  echo "[WARN]  --no-vps set: skipping docker-compose.vps.yml (no HTTPS/SSL overlay)."
+  echo "[WARN]  Use this only for local testing on machines without Let's Encrypt certs."
+else
+  COMPOSE_FILES+=( -f docker-compose.vps.yml )
+fi
+
+# Monitoring overlay — opt-in.
+if [[ "$WITH_MONITORING" == true ]]; then
+  COMPOSE_FILES+=( -f docker-compose.monitoring.yml )
+fi
+
+COMPOSE_PROJECT="music-stream-prod"
+
+COMPOSE_CMD=(
+  docker compose
+  -p "$COMPOSE_PROJECT"
+  --env-file "$ENV_FILE"
+  "${COMPOSE_FILES[@]}"
+)
+# Build/start arguments.
+#
+# Important:
+#   Do NOT use --remove-orphans on app-only deploys. If monitoring was started
+#   previously with --with-monitoring, then a later app-only deploy would treat
+#   Prometheus/Grafana/node_exporter/cAdvisor as orphans and remove them.
+#
+# Therefore:
+#   - app-only deploy: keep any already-running monitoring containers untouched
+#   - monitoring deploy: include all services and safely remove old orphans
+UP_ARGS=(up -d --build)
+
+if [[ "$WITH_MONITORING" == true ]]; then
+  UP_ARGS+=(--remove-orphans)
+fi
 
 # ── Colors ────────────────────────────────────────────────────
 # Day 41: only enable ANSI colors when attached to a real terminal.
@@ -119,7 +189,17 @@ cd "$PROJECT_DIR"
 
 # ── Helpers ───────────────────────────────────────────────────
 compose_for_message() {
-  echo "docker compose --env-file $ENV_FILE -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.vps.yml"
+  local files="-f docker-compose.yml -f docker-compose.prod.yml"
+
+  if [[ "$NO_VPS" != true ]]; then
+    files="$files -f docker-compose.vps.yml"
+  fi
+
+  if [[ "$WITH_MONITORING" == true ]]; then
+    files="$files -f docker-compose.monitoring.yml"
+  fi
+
+  echo "docker compose -p music-stream-prod --env-file $ENV_FILE $files"
 }
 
 read_env_value() {
@@ -258,22 +338,27 @@ refresh_app_nginx() {
 # ══════════════════════════════════════════════════════════════
 section "0 — Acquiring deploy lock"
 # ══════════════════════════════════════════════════════════════
-# Day 41: opens (or creates) the lock file on a dedicated file
+# Opens (or creates) the lock file on a dedicated file
 # descriptor, then tries a non-blocking exclusive flock on it.
 # If another deploy (manual OR CI-triggered) is already holding it,
 # this fails immediately with a clear message instead of racing it.
 # The lock is released automatically when this script's process exits,
 # for any reason — success, failure, or Ctrl-C.
-exec 200>"$LOCK_FILE"
+if command -v flock >/dev/null 2>&1; then
+  exec 200>"$LOCK_FILE"
 
-if ! flock -n "$LOCK_FD"; then
-  error "Another deploy is already in progress (lock: $LOCK_FILE)."
-  error "If you're sure nothing is actually running, remove the lock file:"
-  error "  rm -f $LOCK_FILE"
-  exit 1
+  if ! flock -n "$LOCK_FD"; then
+    error "Another deploy is already in progress (lock: $LOCK_FILE)."
+    error "If you're sure nothing is actually running, remove the lock file:"
+    error "  rm -f $LOCK_FILE"
+    exit 1
+  fi
+
+  info "Lock acquired ✓"
+else
+  warn "flock not found (likely macOS local). Skipping deploy lock."
+  warn "This is fine for local testing. The VPS (Linux) still uses the lock."
 fi
-
-info "Lock acquired ✓"
 
 # ══════════════════════════════════════════════════════════════
 section "1 / 8 — Validating environment"
@@ -291,8 +376,14 @@ info "Found $ENV_FILE ✓"
 # existence check. This used to only run as a separate step in CI —
 # it's here now so a manual `bash scripts/deploy.sh` gets the exact
 # same protection as an automated one.
-if ! bash "$PROJECT_DIR/scripts/check-env.sh" "$ENV_FILE"; then
-  error "$ENV_FILE failed validation (see output above)."
+CHECK_ENV_ARGS=("$ENV_FILE")
+
+if [[ "$WITH_MONITORING" == true ]]; then
+  CHECK_ENV_ARGS+=(--with-monitoring)
+fi
+
+if ! bash "$PROJECT_DIR/scripts/check-env.sh" "${CHECK_ENV_ARGS[@]}"; then
+  error "$ENV_FILE failed validation for this deployment mode (see output above)."
   error "Fix the issues, or run: ./scripts/generate-secrets.sh"
   exit 1
 fi
@@ -357,8 +448,20 @@ fi
 # ══════════════════════════════════════════════════════════════
 section "4 / 8 — Building and starting Docker stack"
 # ══════════════════════════════════════════════════════════════
-info "Running: $(compose_for_message) up -d --build --remove-orphans"
-"${COMPOSE_CMD[@]}" up -d --build --remove-orphans
+if [[ "$WITH_MONITORING" == true ]]; then
+  info "Monitoring stack ENABLED (Prometheus, Grafana, node_exporter, cAdvisor)"
+else
+  info "Monitoring stack disabled (use --with-monitoring to enable)"
+fi
+
+if [[ "$WITH_MONITORING" == true ]]; then
+  info "Running: $(compose_for_message) ${UP_ARGS[*]}"
+else
+  info "Running: $(compose_for_message) ${UP_ARGS[*]}"
+  info "App-only deploy will not remove orphan containers, so existing monitoring stays running if already enabled."
+fi
+
+"${COMPOSE_CMD[@]}" "${UP_ARGS[@]}"
 
 # ══════════════════════════════════════════════════════════════
 section "5 / 8 — Waiting for backend to become healthy"
@@ -447,11 +550,36 @@ fi
 # ══════════════════════════════════════════════════════════════
 section "8 / 8 — Done"
 # ══════════════════════════════════════════════════════════════
-VPS_IP="$(curl -fsS --max-time 3 https://api.ipify.org 2>/dev/null || echo "<VPS_IP>")"
+if [[ "$NO_VPS" == true ]]; then
+  APP_HOST="localhost"
+else
+  APP_HOST="$(curl -fsS --max-time 3 https://api.ipify.org 2>/dev/null || echo "<VPS_IP>")"
+fi
 
 echo ""
 echo -e "${GREEN}${BOLD}🎉 Deploy complete.${NC}"
-echo -e "   App:      ${CYAN}http://${VPS_IP}/${NC}"
-echo -e "   API:      ${CYAN}http://${VPS_IP}/api/v1/${NC}"
-echo -e "   Docs:     ${CYAN}http://${VPS_IP}/api/docs/${NC}"
-echo -e "   Health:   ${CYAN}http://${VPS_IP}/api/health/${NC}"
+echo -e "   App:      ${CYAN}http://${APP_HOST}/${NC}"
+echo -e "   API:      ${CYAN}http://${APP_HOST}/api/v1/${NC}"
+echo -e "   Docs:     ${CYAN}http://${APP_HOST}/api/docs/${NC}"
+echo -e "   Health:   ${CYAN}http://${APP_HOST}/api/health/${NC}"
+
+if [[ "$WITH_MONITORING" == true ]]; then
+  PROMETHEUS_HOST_PORT="${PROMETHEUS_HOST_PORT:-}"
+  GRAFANA_HOST_PORT="${GRAFANA_HOST_PORT:-}"
+
+  if [[ -z "$PROMETHEUS_HOST_PORT" ]]; then
+    PROMETHEUS_HOST_PORT="$(read_env_value PROMETHEUS_HOST_PORT || true)"
+  fi
+
+  if [[ -z "$GRAFANA_HOST_PORT" ]]; then
+    GRAFANA_HOST_PORT="$(read_env_value GRAFANA_HOST_PORT || true)"
+  fi
+
+  PROMETHEUS_HOST_PORT="${PROMETHEUS_HOST_PORT:-9090}"
+  GRAFANA_HOST_PORT="${GRAFANA_HOST_PORT:-3001}"
+
+  echo ""
+  echo -e "${CYAN}${BOLD}Monitoring (bound to localhost — use SSH tunnel):${NC}"
+echo -e "   Grafana:    ssh -L ${GRAFANA_HOST_PORT}:127.0.0.1:${GRAFANA_HOST_PORT} <user>@${APP_HOST}  →  http://localhost:${GRAFANA_HOST_PORT}"
+echo -e "   Prometheus: ssh -L ${PROMETHEUS_HOST_PORT}:127.0.0.1:${PROMETHEUS_HOST_PORT} <user>@${APP_HOST}  →  http://localhost:${PROMETHEUS_HOST_PORT}"
+fi

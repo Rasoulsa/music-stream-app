@@ -46,11 +46,13 @@ def _make_song(owner, title, is_public=True):
 # ── Health check ───────────────────────────────────────────────────────
 
 
+@pytest.mark.django_db
 def test_health_check_reports_cache_ok(api_client):
     res = api_client.get(reverse("health-check"))
+
     assert res.status_code == status.HTTP_200_OK
     assert res.data["status"] == "ok"
-    assert res.data["cache"] == "ok"
+    assert res.data["checks"]["cache"] == "ok"
 
 
 # ── Feed caching ───────────────────────────────────────────────────────

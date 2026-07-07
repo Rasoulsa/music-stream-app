@@ -1,0 +1,12 @@
+# Tell Grafana to load dashboard JSON files from a folder.
+apiVersion: 1
+
+providers:
+  - name: "music-stream"
+    orgId: 1
+    folder: "Music Stream"
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

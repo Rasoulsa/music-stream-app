@@ -8,7 +8,6 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions, status, viewsets
-from rest_framework.decorators import api_view, permission_classes
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -53,24 +52,24 @@ User = get_user_model()
         }
     },
 )
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def health_check(request):
-    """Simple health check — reports service name and cache status."""
-    cache_ok = False
-    try:
-        cache.set("healthcheck", "ok", timeout=5)
-        cache_ok = cache.get("healthcheck") == "ok"
-    except Exception:  # pragma: no cover
-        cache_ok = False
+# @api_view(["GET"])
+# @permission_classes([AllowAny])
+# def health_check(request):
+#     """Simple health check — reports service name and cache status."""
+#     cache_ok = False
+#     try:
+#         cache.set("healthcheck", "ok", timeout=5)
+#         cache_ok = cache.get("healthcheck") == "ok"
+#     except Exception:  # pragma: no cover
+#         cache_ok = False
 
-    return Response(
-        {
-            "status": "ok",
-            "service": "music-stream-app",
-            "cache": "ok" if cache_ok else "unavailable",
-        }
-    )
+#     return Response(
+#         {
+#             "status": "ok",
+#             "service": "music-stream-app",
+#             "cache": "ok" if cache_ok else "unavailable",
+#         }
+#     )
 
 
 # ── Authentication ─────────────────────────────────────────────────────────────

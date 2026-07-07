@@ -232,6 +232,13 @@ server {
         access_log off;
     }
 
+    # ── Block public access to internal metrics ──────────────
+    # Prometheus scrapes backend:8000/metrics over the internal Docker
+    # network. It must never be exposed to the public internet.
+    location = /metrics {
+        return 404;
+    }
+
     # ── Frontend SPA ─────────────────────────────────────────
     location / {
         proxy_pass         http://$frontend_upstream;

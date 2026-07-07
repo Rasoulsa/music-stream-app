@@ -31,6 +31,7 @@ jobs:
           test -f docs/env-management.md
           test -f docs/security.md
           test -f docs/performance.md
+          test -f docs/monitoring.md
           test -f docs/smoke-tests.md
           test -f backend/README.md
           test -f frontend/README.md
@@ -41,6 +42,7 @@ jobs:
           grep -q "docs/env-management.md" README.md
           grep -q "docs/security.md" README.md
           grep -q "docs/performance.md" README.md
+           grep -q "docs/monitoring.md" README.md
           grep -q "docs/smoke-tests.md" README.md
           grep -q "backend/README.md" README.md
           grep -q "frontend/README.md" README.md
@@ -50,4 +52,5 @@ jobs:
           grep -q "env-management.md" docs/ARCHITECTURE.md
           grep -q "security.md" docs/ARCHITECTURE.md
           grep -q "performance.md" docs/ARCHITECTURE.md
+          grep -q "monitoring.md" docs/ARCHITECTURE.md
           grep -q "smoke-tests.md" docs/ARCHITECTURE.md
