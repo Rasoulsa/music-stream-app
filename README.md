@@ -639,6 +639,27 @@ ssh -L 3000:localhost:3000 <vps-user>@<vps-host>
 ssh -L 9090:localhost:9090 <vps-user>@<vps-host>
 ```
 
+### Operational note: time synchronization in restricted networks
+
+This deployment expects the server clock to be reasonably accurate for TLS,
+logs, Prometheus, Grafana, and CI/CD verification.
+
+Normally, time synchronization should be handled by NTP/Chrony. However, in some
+restricted networks, NTP may fail because UDP/123 traffic is blocked. For that
+case, the project includes an optional HTTPS-based fallback time sync runner.
+
+See:
+- [Operations](docs/operations.md)
+
+Quick install/update:
+
+```bash
+sudo bash scripts/ops/https-time-sync.sh install
+```
+
+> This fallback uses HTTPS `Date` headers over TCP/443 and is not a full
+> replacement for proper NTP.
+
 ---
 
 ## ✅ Production Smoke Test
@@ -730,6 +751,7 @@ Common commands:
 | [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Contribution workflow |
 | [`docs/https-haproxy.md`](./docs/https-haproxy.md) | HTTPS with Let's Encrypt + HAProxy SNI |
 | [`docs/monitoring.md`](./docs/monitoring.md) | Monitoring, metrics, logging, and alerting |
+| [Operations](docs/operations.md) — deployment operations, monitoring notes, and restricted-network HTTPS time sync fallback |
 
 ---
 
