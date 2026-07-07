@@ -111,7 +111,7 @@ jobs:
             -f docker-compose.vps.yml \
             -f docker-compose.monitoring.yml \
             --env-file .env.prod \
-            -p music-stream-prod \
+            -p music-stream-app \
             config >/dev/null
 
             echo "✅ Production + monitoring Compose config is valid"

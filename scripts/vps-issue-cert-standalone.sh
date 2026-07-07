@@ -45,6 +45,7 @@ get_env_value() {
 
 APP_DOMAIN="${APP_DOMAIN:-$(get_env_value APP_DOMAIN || true)}"
 ACME_EMAIL="${ACME_EMAIL:-$(get_env_value ACME_EMAIL || true)}"
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-music-stream-app}"
 
 if [[ -z "${APP_DOMAIN}" ]]; then
   echo "ERROR: APP_DOMAIN is missing." >&2
@@ -77,7 +78,7 @@ if [[ -d "${APP_DIR}" ]]; then
 
   echo "==> Stopping app nginx if it is running, to free port 80"
   docker compose \
-    --project-name music-stream-prod \
+    --project-name "$COMPOSE_PROJECT_NAME" \
     --env-file .env.prod \
     -f docker-compose.yml \
     -f docker-compose.prod.yml \
