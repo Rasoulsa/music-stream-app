@@ -57,6 +57,20 @@
 #   make monitoring-ps-local    [local] Show local monitoring status
 #   make monitoring-logs-local  [local] Follow local monitoring logs
 #
+#   make backup              		Run full backup (db + media) with retention prune
+#   make backup-db           		Backup database only
+#   make backup-media        		Backup media files only
+#   make backup-list         		List existing backups (newest first)
+#
+#   make restore-db FILE=<path>		Restore database from a backup file
+#   make restore-media FILE=<path>	Restore media files from a backup file
+#
+#   make backups-install     		Install systemd daily backup timer (VPS only)
+#   make backups-status      		Show backup timer status + recent logs
+#
+#   make backup-rsync        		Manually push backups to secondary host via rsync over SSH
+#                            		(optional offsite — configure BACKUP_RSYNC_* in .env.prod)
+#
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -513,3 +527,41 @@ monitoring-logs-local: ## [local] Follow local monitoring logs
 .PHONY: monitoring-config-local
 monitoring-config-local: ## [local] Render local monitoring Compose config
 	$(MONITORING_LOCAL) config
+
+# ─────────────────────────────────────────────
+#  Backups
+# ─────────────────────────────────────────────
+.PHONY: backup backup-db backup-media backup-list \
+        restore-db restore-media backups-install backups-status
+
+backup:            ## Full backup (db + media) with retention prune
+	bash scripts/backup/backup.sh
+
+backup-db:         ## Backup database only
+	bash scripts/backup/backup.sh --db-only
+
+backup-media:      ## Backup media only
+	bash scripts/backup/backup.sh --media-only
+
+backup-list:       ## List existing backups (newest first)
+	@echo "== DB daily =="   ; ls -1t backups/db/daily/db-*.dump.gz     2>/dev/null || echo "  (none)"
+	@echo "== DB weekly =="  ; ls -1t backups/db/weekly/db-*.dump.gz    2>/dev/null || echo "  (none)"
+	@echo "== Media daily ==" ; ls -1t backups/media/daily/media-*.tar.gz  2>/dev/null || echo "  (none)"
+	@echo "== Media weekly ==" ; ls -1t backups/media/weekly/media-*.tar.gz 2>/dev/null || echo "  (none)"
+
+restore-db:        ## make restore-db FILE=backups/db/daily/db-xxx.dump.gz
+	@test -n "$(FILE)" || { echo "Usage: make restore-db FILE=<path>.dump.gz"; exit 1; }
+	bash scripts/backup/restore-db.sh "$(FILE)"
+
+restore-media:     ## make restore-media FILE=backups/media/daily/media-xxx.tar.gz
+	@test -n "$(FILE)" || { echo "Usage: make restore-media FILE=<path>.tar.gz"; exit 1; }
+	bash scripts/backup/restore-media.sh "$(FILE)"
+
+backups-install:   ## Install systemd daily backup timer (VPS)
+	sudo bash scripts/ops/install-backups.sh install
+
+backups-status:    ## Show backup timer + recent logs
+	bash scripts/ops/install-backups.sh status
+
+backup-rsync:      ## Manually push backups to secondary host via rsync over SSH
+	bash scripts/backup/upload-rsync.sh

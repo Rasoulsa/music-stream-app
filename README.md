@@ -41,8 +41,8 @@ Day 39 → Manual VPS deploy          ✅ Done
 Day 40 → Domain + HTTPS             ✅ Done
 Day 41 → CI/CD auto-deploy          ✅ Done
 Day 42 → Monitoring + logging       ✅ Done
-Day 43 → Backups                    ⏭️ Next
-Day 44 → AWS/cloud migration intro
+Day 43 → Backups                    ✅ Done
+Day 44 → AWS/cloud migration intro  ⏭️ Next
 Day 45 → Final demo prep
 ```
 
@@ -84,7 +84,9 @@ Day 45 → Final demo prep
 - [x] Domain + HTTPS (Let's Encrypt + HAProxy SNI)
 - [x] CI/CD auto-deploy with GitHub Actions
 - [x] Structured JSON logging with request ID tracing
-- [ ] Database and media backups
+- [x] Database and media backups
+- [x] Backup retention policy: 7 daily + 4 weekly backups
+- [x] Optional offsite backup scripts for S3-compatible storage and manual rsync over SSH
 - [ ] Playlists
 - [ ] Favorite/liked songs
 
@@ -104,6 +106,9 @@ Day 45 → Final demo prep
 | Background Jobs | Celery |
 | Broker | Redis |
 | Storage | MinIO locally, S3-compatible storage in production |
+| Backups | pg_dump, MinIO Client, tar/gzip, sha256 |
+| Backup Scheduling | systemd timer |
+| Offsite Backup Options | S3-compatible upload, manual rsync over SSH |
 | Reverse Proxy | Nginx |
 | Authentication | JWT with SimpleJWT |
 | API Docs | drf-spectacular, OpenAPI, Swagger, Redoc |
@@ -249,6 +254,19 @@ music-stream-app/
 │       └── dashboards/
 │           └── app-overview.json
 ├── scripts/
+│   ├── backup/
+│   │   ├── backup.sh
+│   │   ├── backup-db.sh
+│   │   ├── backup-media.sh
+│   │   ├── restore-db.sh
+│   │   ├── restore-media.sh
+│   │   ├── prune.sh
+│   │   ├── upload-remote.sh
+│   │   ├── upload-rsync.sh
+│   │   └── lib.sh
+│   ├── ops/
+│   │   ├── install-backups.sh
+│   │   └── https-time-sync.sh
 │   ├── check-env.sh
 │   ├── deploy.sh
 │   ├── generate-secrets.sh
@@ -265,7 +283,11 @@ music-stream-app/
 │   ├── performance.md
 │   ├── security.md
 │   ├── smoke-tests.md
+│   ├── backups.md
+│   ├── operations.md
 │   └── JOURNAL.md
+├── backups/
+│   └── .gitignore
 ├── docker-compose.yml
 ├── docker-compose.dev.yml
 ├── docker-compose.prod.yml
@@ -392,6 +414,23 @@ Expected result:
 Results: 52 passed, 0 failed
 ```
 
+### 6. Run a local backup
+
+Once the production-like stack is running, backups can be tested locally:
+
+```bash
+make backup
+make backup-list
+```
+
+This creates compressed, checksummed database and media backups under:
+
+```text
+./backups/
+```
+
+The backup directory is git-ignored except for `backups/.gitignore`.
+
 ---
 
 ## 🚢 Deployment
@@ -406,8 +445,8 @@ Phase 5, Deployment & Cloud, is in progress:
 - ✅ Day 40 — Domain + HTTPS (Let's Encrypt + HAProxy SNI) — [`docs/https-haproxy.md`](./docs/https-haproxy.md)
 - ✅ Day 41 — CI/CD auto-deploy to VPS
 - ✅ Day 42 — Monitoring and logging basics
-- ⏭️ Day 43 — Database and media backups
-- ⬜ Day 44 — AWS/cloud migration intro
+- ✅ Day 43 — Database and media backups
+- ⏭️ Day 44 — AWS/cloud migration intro
 - ⬜ Day 45 — Final demo prep and interview walkthrough
 
 The deployment plan starts with a VPS-based production environment and later
@@ -662,6 +701,164 @@ sudo bash scripts/ops/https-time-sync.sh install
 
 ---
 
+## 💾 Backups and Disaster Recovery
+
+Backup and restore procedures are documented in:
+
+👉 [`docs/backups.md`](./docs/backups.md)
+
+The project includes a production-style backup system for both PostgreSQL data
+and uploaded media objects.
+
+### What is backed up?
+
+| Data | Method |
+|---|---|
+| PostgreSQL database | `pg_dump` custom format, gzip compressed |
+| Media files | MinIO/S3 bucket mirrored with `mc`, archived with `tar.gz` |
+
+### Backup features
+
+- Full backup command for database + media
+- Database-only and media-only backup commands
+- SHA256 checksum generation for every artifact
+- Gzip integrity verification
+- Retention policy:
+  - keep 7 daily backups
+  - keep 4 weekly backups
+- Backup pruning for old artifacts
+- Latest backup symlinks for convenience
+- Restore scripts with confirmation prompts to prevent accidental overwrite
+- systemd timer installer for daily scheduled backups on VPS
+- Optional offsite upload script for S3-compatible storage
+- Optional manual rsync script for pushing backups to a secondary VPS
+
+### Backup commands
+
+```bash
+# Full backup: database + media
+make backup
+
+# Database only
+make backup-db
+
+# Media only
+make backup-media
+
+# List local backup artifacts
+make backup-list
+```
+
+### Restore commands
+
+```bash
+# Restore database from a backup artifact
+make restore-db FILE=backups/db/daily/db-YYYYMMDD-HHMMSS.dump.gz
+
+# Restore media from a backup artifact
+make restore-media FILE=backups/media/daily/media-YYYYMMDD-HHMMSS.tar.gz
+```
+
+Restore scripts require explicit confirmation before overwriting data.
+
+### Backup storage location
+
+**By default, backups are stored under:**
+
+```text
+./backups/
+```
+
+The location can be changed with:
+
+```ini
+BACKUP_ROOT=/opt/backups/music-stream-app
+```
+
+This allows the same scripts to write backups to a different disk, mounted
+volume, or server path.
+
+### Offsite backup options
+
+The project supports optional offsite strategies.
+
+**Option A — S3-compatible storage**
+
+Handled by:
+```text
+scripts/backup/upload-remote.sh
+```
+
+This is disabled by default and can be enabled later with real S3-compatible
+credentials.
+
+Example configuration:
+
+```routeros
+BACKUP_REMOTE_UPLOAD=true
+BACKUP_S3_BUCKET=my-offsite-backup-bucket
+BACKUP_S3_ENDPOINT=
+```
+
+For AWS S3, `BACKUP_S3_ENDPOINT` can be empty.
+
+**Option B — Manual rsync to another VPS**
+
+Handled by:
+
+```text
+scripts/backup/upload-rsync.sh
+```
+
+This script is intentionally ***manual only***. It is not executed automatically
+on every backup.
+
+Run it with:
+
+```bash
+make backup-rsync
+```
+
+Example configuration:
+
+```ini
+BACKUP_RSYNC_HOST=deploy@backup.example.com
+BACKUP_RSYNC_PATH=/opt/backups/music-stream-app
+BACKUP_RSYNC_KEY=/home/deploy/.ssh/backup_key
+```
+
+This is useful when using a second VPS as a simple offsite backup target.
+
+### Scheduling on VPS
+
+Daily scheduled backups can be installed with:
+
+```bash
+make backups-install
+```
+
+Check timer status and recent backup logs:
+
+```bash
+make backups-status
+```
+
+The scheduling uses a systemd timer instead of cron, with persistent execution
+support for missed runs.
+
+### Local verification performed
+
+The backup implementation has been verified locally with:
+
+- successful database backup
+- successful media backup from MinIO bucket music-media
+- backup listing
+- tar archive inspection
+- SHA256 checksum verification for database artifacts
+- SHA256 checksum verification for media artifacts
+
+---
+
 ## ✅ Production Smoke Test
 
 The production smoke test validates the full stack:
@@ -731,6 +928,15 @@ Common commands:
 | `make monitoring-ps` | Show monitoring container status |
 | `make monitoring-logs` | Follow monitoring stack logs |
 | `make monitoring-reload` | Hot-reload Prometheus config |
+| `make backup` | Run full backup: database + media |
+| `make backup-db` | Backup PostgreSQL database only |
+| `make backup-media` | Backup media bucket only |
+| `make backup-list` | List existing local backups |
+| `make restore-db FILE=<path>` | Restore database from backup file |
+| `make restore-media FILE=<path>` | Restore media from backup file |
+| `make backups-install` | Install daily systemd backup timer on VPS |
+| `make backups-status` | Show backup timer status and recent logs |
+| `make backup-rsync` | Manually push backups to secondary VPS via rsync over SSH |
 
 ---
 
@@ -752,6 +958,7 @@ Common commands:
 | [`docs/https-haproxy.md`](./docs/https-haproxy.md) | HTTPS with Let's Encrypt + HAProxy SNI |
 | [`docs/monitoring.md`](./docs/monitoring.md) | Monitoring, metrics, logging, and alerting |
 | [Fallback HTTPS Time Synchronization](docs/operations.md#fallback-https-time-synchronization) — deployment operations, monitoring notes, and restricted-network HTTPS time sync fallback |
+| [`docs/backups.md`](./docs/backups.md) | Database/media backup, restore, retention, scheduling, and offsite strategy |
 
 ---
 
@@ -767,6 +974,7 @@ Common commands:
 - [x] Day 39 — Manual VPS deploy (HTTP, port 80)
 - [x] Day 40 — Domain + HTTPS with Let's Encrypt
 - [x] Day 42 — Monitoring and logging basics
+- [x] Day 43 — Database and media backups
 
 ### In Progress
 
@@ -774,7 +982,6 @@ Common commands:
 
 ### Next
 
-- [ ] Day 43 — Database and media backups
 - [ ] Day 44 — AWS/cloud migration intro
 - [ ] Day 45 — Final demo prep and interview walkthrough
 
@@ -809,6 +1016,13 @@ This project demonstrates:
 - Structured JSON logging with per-request ID tracing for observability
 - Keeping monitoring private (localhost-bound, SSH tunnel, /metrics blocked at edge)
 - Designing readiness checks that verify real dependencies (db, cache)
+- Designing a backup and restore system for both database and object storage
+- Using `pg_dump`, compression, SHA256 checksums, and retention policies
+- Backing up media through the object-storage API instead of relying on MinIO internals
+- Implementing restore scripts with explicit confirmation to prevent accidental data loss
+- Scheduling daily backups with systemd timers
+- Supporting offsite backup strategies via S3-compatible storage and manual rsync to another VPS
+- Applying disaster recovery thinking with RPO/RTO goals and the 3-2-1 backup principle
 
 ---
 
