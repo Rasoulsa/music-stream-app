@@ -30,7 +30,7 @@ Phase 1: Backend Foundation        ✅ Done
 Phase 2: Backend Hardening         ✅ Done
 Phase 3: Frontend                  ✅ Done
 Phase 4: Integration & Production  ✅ Done
-Phase 5: Deployment & Cloud        🟡 In Progress
+Phase 5: Deployment & Cloud        ✅ Done
 ```
 
 Phase 5 progress:
@@ -43,7 +43,6 @@ Day 41 → CI/CD auto-deploy          ✅ Done
 Day 42 → Monitoring + logging       ✅ Done
 Day 43 → Backups                    ✅ Done
 Day 44 → AWS/cloud migration intro  ✅ Done
-Day 45 → Final demo prep            ⏭️ Next
 ```
 
 ---
@@ -450,7 +449,6 @@ Phase 5, Deployment & Cloud, is in progress:
 - ✅ Day 42 — Monitoring and logging basics
 - ✅ Day 43 — Database and media backups
 - ✅ Day 44 — AWS/cloud migration intro
-- ⏭️ Day 45 — Final demo prep and interview walkthrough
 
 The deployment plan starts with a VPS-based production environment and later
 moves toward cloud deployment concepts such as managed storage, managed
@@ -1012,31 +1010,6 @@ Common commands:
 | [`docs/operations.md`](docs/operations.md) | Deployment operations, monitoring notes, and restricted-network HTTPS time sync fallback |
 | [`docs/backups.md`](./docs/backups.md) | Database/media backup, restore, retention, scheduling, and offsite strategy |
 | [`docs/cloud-migration.md`](./docs/cloud-migration.md) | AWS migration strategy: S3, RDS, ElastiCache, ECS mapping |
-
----
-
-## 🧭 Roadmap
-
-### Completed
-
-- [x] Phase 1 — Backend Foundation
-- [x] Phase 2 — Backend Hardening
-- [x] Phase 3 — Frontend
-- [x] Phase 4 — Integration & Production
-- [x] Day 38 — VPS setup: server hardening, Docker, firewall
-- [x] Day 39 — Manual VPS deploy (HTTP, port 80)
-- [x] Day 40 — Domain + HTTPS with Let's Encrypt
-- [x] Day 42 — Monitoring and logging basics
-- [x] Day 43 — Database and media backups
-- [x] Day 44 — AWS/cloud migration intro
-
-### In Progress
-
-- [ ] Phase 5 — Deployment & Cloud
-
-### Next
-
-- [ ] Day 45 — Final demo prep and interview walkthrough
 
 ---
 

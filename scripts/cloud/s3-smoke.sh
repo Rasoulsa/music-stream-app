@@ -15,13 +15,6 @@
 # Optional:
 #   AWS_S3_ENDPOINT_URL   (set for MinIO; UNSET for real AWS S3)
 #   AWS_S3_REGION_NAME    (default: us-east-1)
-#   DOCKER_NETWORK        (override auto-detected compose network for mc fallback)
-#
-# Notes:
-#   - If the 'aws' CLI is installed, it is used directly.
-#   - Otherwise, falls back to 'minio/mc' via docker. Because MinIO's internal
-#     hostname ('minio') only resolves inside the compose network, the mc
-#     container auto-joins the detected compose network (music-stream-app_default).
 #
 set -euo pipefail
 
@@ -97,32 +90,21 @@ run_with_aws_cli() {
 run_with_mc_docker() {
   log "aws CLI not found — using minio/mc via docker"
 
-  # Auto-detect the compose network if not provided.
-  # MinIO's internal hostname ('minio') only resolves on this network.
-  local net="${DOCKER_NETWORK:-}"
-  if [[ -z "${net}" ]]; then
-    net="$(docker network ls --format '{{.Name}}' \
-            | grep -E 'music-stream-app.*default' \
-            | head -n1 || true)"
-  fi
-  [[ -n "${net}" ]] || die "Could not detect compose network. Set DOCKER_NETWORK=<name> (see: docker network ls)"
-
-  log "Using docker network: ${net}"
-
   local host_url
   if [[ -n "${ENDPOINT}" ]]; then
+    # Convert http://host:port into mc alias
     host_url="${ENDPOINT}"
   else
     host_url="https://s3.${AWS_S3_REGION_NAME}.amazonaws.com"
   fi
 
-  # Strip scheme for MC_HOST embedding.
+  # Strip scheme for MC_HOST embedding
   local scheme="${host_url%%://*}"
   local hostport="${host_url#*://}"
   local mc_host="${scheme}://${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}@${hostport}"
 
   docker run --rm \
-    --network "${net}" \
+    --network "${DOCKER_NETWORK:-bridge}" \
     -v "${TMP_DIR}:/data" \
     -e MC_HOST_s3="${mc_host}" \
     --entrypoint /bin/sh \
