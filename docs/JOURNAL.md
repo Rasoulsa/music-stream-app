@@ -1307,6 +1307,88 @@ duplicating its logic in CI.
 - [`https-haproxy.md`](./https-haproxy.md) — the edge path the public
   health check exercises.
 
-### Next step
+## Day 42 — Structured Logging + Observability (Prometheus, Grafana, node_exporter, cAdvisor)
 
-- Day 42 — Monitoring and logging basics.
+### Goal
+Add production-grade observability so the app's health, performance, and resource usage are visible without exposing any monitoring surface to the public internet.
+
+### What I did
+- Instrumented the Django app with `django-prometheus` for request rate, latency, and status-code metrics.
+- Added `node_exporter` for host-level metrics (CPU, RAM, disk) and `cAdvisor` for per-container metrics.
+- Added a `docker-compose.monitoring.yml` overlay so the monitoring stack can run alongside the app without being part of the default `docker-compose.yml`.
+- Set up Prometheus to scrape all targets every 15s.
+- Provisioned Grafana as code: a `prometheus` datasource and an `app-overview` dashboard under `monitoring/grafana/provisioning/`, so dashboards exist from first boot without manual clicking.
+- Added Prometheus alert rules (`monitoring/prometheus/rules/alerts.yml`) covering: target down, high HTTP 5xx rate, high disk usage, high memory usage.
+- Converted production logging to structured, single-line JSON, with a per-request `X-Request-ID` propagated across logs and response headers for tracing.
+- Configured Docker's `json-file` log driver with rotation (10MB × 3 files per container) to prevent unbounded log growth.
+- Turned `/api/health/` into a real readiness check — verifies DB and cache, returns `503` when degraded instead of always `200` — so uptime monitors and load balancers get a meaningful signal.
+- Locked down monitoring access: Prometheus (`:9090`) and Grafana (`:3000`) bind to `127.0.0.1` only, reached via SSH tunnel; `/metrics` returns `404` at the public Nginx edge.
+- Added `scripts/ops/https-time-sync.sh` as a fallback time-sync mechanism for restricted networks where NTP's UDP/123 is blocked, using HTTPS `Date` headers over TCP/443 instead.
+- Documented all of this in `docs/monitoring.md` and `docs/operations.md`.
+
+### Technical decisions
+- Kept monitoring on a separate Compose overlay (`docker-compose.monitoring.yml`) rather than folding it into the main stack, so it can be started/stopped independently (`make monitoring-up` / `make monitoring-down`) without touching the running app.
+- Chose SSH tunnel access over exposing Grafana/Prometheus publicly, even behind auth — smaller attack surface for a single-operator portfolio deployment.
+- Made `/api/health/` a real dependency check (DB + cache) rather than a static "I'm alive" response, since the whole point of a readiness probe is catching *degraded*, not just *dead*.
+- Provisioned Grafana dashboards as code instead of manually building them in the UI, so the dashboard is reproducible and versioned like everything else.
+- Treated the HTTPS-based time-sync fallback as a documented exception, not the default — proper NTP/Chrony remains the primary mechanism; the fallback only exists for restricted-network edge cases.
+
+### Why this matters
+- The app can now answer "is it actually healthy" with real dependency checks, not just "is the process running."
+- Metrics + logs + request tracing together mean a production issue can be diagnosed without SSHing in blind and grepping raw logs.
+- Keeping the observability surface private-by-default demonstrates a security-conscious default, not just "monitoring exists."
+
+### What I learned
+- The difference between a liveness check (process is up) and a readiness check (dependencies are actually healthy) — and why load balancers care about the second one.
+- How Prometheus scrape targets, exporters, and Grafana provisioning-as-code fit together as one coherent stack.
+- Why structured JSON logs with a request ID matter once you have more than one moving part to correlate across.
+- Why log rotation has to be configured explicitly — Docker's default `json-file` driver doesn't rotate on its own.
+
+### Related docs
+- [`monitoring.md`](./monitoring.md) — full metrics, logging, and alerting setup.
+- [`operations.md`](./operations.md) — fallback HTTPS time synchronization.
+- [`security.md`](./security.md) — why monitoring endpoints stay private.
+
+---
+
+## Day 43 — Database and Media Backups
+
+### Goal
+Add a real backup and disaster-recovery system for both PostgreSQL data and MinIO/S3 media objects, with retention, verification, and optional offsite copies.
+
+### What I did
+- Built `scripts/backup/backup.sh` (full backup) plus standalone `backup-db.sh` and `backup-media.sh` for targeted backups.
+- Database backups use `pg_dump` in custom format, gzip-compressed.
+- Media backups mirror the MinIO/S3 `music-media` bucket via `mc` (MinIO Client) through the object-storage API rather than touching MinIO's internal data directory directly, then archive with `tar.gz`.
+- Generated a SHA256 checksum for every backup artifact, plus gzip integrity verification.
+- Implemented a retention policy: keep 7 daily backups + 4 weekly backups, with `scripts/backup/prune.sh` removing anything older.
+- Added "latest backup" symlinks for convenience when scripting restores.
+- Built `restore-db.sh` and `restore-media.sh`, both requiring explicit confirmation before overwriting existing data.
+- Added `scripts/ops/install-backups.sh` to install a systemd timer for daily scheduled backups on the VPS (with persistent execution, so a missed run — e.g. VPS was off — still catches up).
+- Added two optional offsite strategies: `upload-remote.sh` (S3-compatible storage, disabled by default, opt-in via `BACKUP_REMOTE_UPLOAD=true`) and `upload-rsync.sh` (manual-only push to a secondary VPS over SSH — deliberately never runs automatically).
+- Made the backup root configurable via `BACKUP_ROOT`, so backups can target a different disk or mounted volume instead of the default `./backups/`.
+- Verified locally: successful DB backup, successful media backup from the `music-media` bucket, backup listing, tar archive inspection, and SHA256 verification for both artifact types.
+- Documented everything in `docs/backups.md`.
+
+### Technical decisions
+- Backed up media through the object-storage API (`mc mirror`) instead of reaching into MinIO's internal storage directly — keeps the backup mechanism portable to real S3 later, since Day 44 is an AWS/cloud migration.
+- Kept the rsync-to-secondary-VPS path strictly manual (`make backup-rsync`), never automatic — an accidental automated sync of a corrupted backup to your only offsite copy defeats the purpose of having one.
+- Used a systemd timer instead of cron for scheduling, specifically for persistent/catch-up execution semantics after a missed run.
+- Required explicit confirmation in both restore scripts — a backup system that makes destructive restores easy to trigger by accident is worse than not automating restores at all.
+- Made offsite S3 upload opt-in/disabled by default, so the backup system works out of the box locally without requiring external credentials just to test it.
+
+### Why this matters
+- The project now has an actual disaster-recovery story, not just "backups exist somewhere" — retention, checksums, and restore confirmation all point at RPO/RTO thinking, not just running `pg_dump` once.
+- Two independent offsite options (S3-compatible + manual rsync) demonstrate the 3-2-1 backup principle rather than a single point of failure on the same VPS being backed up.
+
+### What I learned
+- Why backing up object storage through its API is more portable than copying MinIO's internal files directly.
+- Why checksums matter as much as the backup itself — a corrupted backup that "exists" is worse than knowing you have none.
+- Why systemd timers, not cron, are the better fit when a missed scheduled run still needs to happen later.
+- Why irreversible operations (restore) should require a deliberate, explicit confirmation step rather than a single flag.
+
+### Related docs
+- [`backups.md`](./backups.md) — full backup, restore, retention, and offsite documentation.
+
+### Next step
+- Day 44 — AWS/cloud migration intro.
