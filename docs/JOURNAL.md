@@ -1390,5 +1390,21 @@ Add a real backup and disaster-recovery system for both PostgreSQL data and MinI
 ### Related docs
 - [`backups.md`](./backups.md) — full backup, restore, retention, and offsite documentation.
 
-### Next step
-- Day 44 — AWS/cloud migration intro.
+## Day 44 — AWS / Cloud Migration Intro
+
+**Goal:** Demonstrate cloud-migration readiness without a full AWS deployment.
+
+**Delivered:**
+- `docs/cloud-migration.md` — service mapping (S3, RDS, ElastiCache, ECS),
+  migration order, cost awareness, and interview summary.
+- `scripts/cloud/s3-smoke.sh` + `make s3-smoke` — proves the storage layer works
+  against both MinIO and real AWS S3 via the same S3 API (config-only swap).
+- `.env.prod.example` — documented MinIO vs. real AWS S3 configuration.
+- README — Cloud Migration Readiness section.
+
+**Key insight:** The two hardest layers to migrate (storage, database) already
+use portable interfaces. Storage → S3 is config-only (validated). Database → RDS
+reuses the Day 43 `pg_dump` artifacts. The biggest remaining step (Compose → ECS)
+is an infrastructure-as-code exercise, not an app rewrite.
+
+**Validated:** `make s3-smoke` passed against local MinIO.

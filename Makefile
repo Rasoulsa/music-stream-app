@@ -71,6 +71,8 @@
 #   make backup-rsync        		Manually push backups to secondary host via rsync over SSH
 #                            		(optional offsite — configure BACKUP_RSYNC_* in .env.prod)
 #
+#   make s3-smoke            		Prove S3 compatibility (MinIO or real AWS S3)
+#
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -565,3 +567,11 @@ backups-status:    ## Show backup timer + recent logs
 
 backup-rsync:      ## Manually push backups to secondary host via rsync over SSH
 	bash scripts/backup/upload-rsync.sh
+
+# ─────────────────────────────────────────────
+#  Cloud / AWS
+# ─────────────────────────────────────────────
+.PHONY: s3-smoke
+
+s3-smoke:          ## Prove S3 compatibility of storage layer (MinIO or real AWS S3)
+	bash scripts/cloud/s3-smoke.sh

@@ -42,8 +42,8 @@ Day 40 → Domain + HTTPS             ✅ Done
 Day 41 → CI/CD auto-deploy          ✅ Done
 Day 42 → Monitoring + logging       ✅ Done
 Day 43 → Backups                    ✅ Done
-Day 44 → AWS/cloud migration intro  ⏭️ Next
-Day 45 → Final demo prep
+Day 44 → AWS/cloud migration intro  ✅ Done
+Day 45 → Final demo prep            ⏭️ Next
 ```
 
 ---
@@ -273,7 +273,9 @@ music-stream-app/
 │   ├── server-setup.sh
 │   ├── smoke-prod.sh
 │   ├── vps-prepare-https.sh
-│   └── vps-issue-cert-standalone.sh
+│   ├── vps-issue-cert-standalone.sh
+│   ├── cloud/
+│   │   └── s3-smoke.sh.sh
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── deployment.md
@@ -285,6 +287,7 @@ music-stream-app/
 │   ├── smoke-tests.md
 │   ├── backups.md
 │   ├── operations.md
+│   ├── cloud-migration.md
 │   └── JOURNAL.md
 ├── backups/
 │   └── .gitignore
@@ -446,8 +449,8 @@ Phase 5, Deployment & Cloud, is in progress:
 - ✅ Day 41 — CI/CD auto-deploy to VPS
 - ✅ Day 42 — Monitoring and logging basics
 - ✅ Day 43 — Database and media backups
-- ⏭️ Day 44 — AWS/cloud migration intro
-- ⬜ Day 45 — Final demo prep and interview walkthrough
+- ✅ Day 44 — AWS/cloud migration intro
+- ⏭️ Day 45 — Final demo prep and interview walkthrough
 
 The deployment plan starts with a VPS-based production environment and later
 moves toward cloud deployment concepts such as managed storage, managed
@@ -859,6 +862,55 @@ The backup implementation has been verified locally with:
 
 ---
 
+## ☁️ Cloud Migration Readiness (AWS)
+
+Cloud migration strategy is documented in:
+
+👉 [`docs/cloud-migration.md`](./docs/cloud-migration.md)
+
+The application is **cloud-ready by design**. The stateful, hardest-to-migrate
+layers use standard, portable interfaces:
+
+| Current (self-hosted) | AWS managed equivalent | Migration effort |
+|---|---|---|
+| MinIO (S3-compatible) | Amazon S3 | Config only |
+| PostgreSQL | Amazon RDS | Dump + restore |
+| Redis | Amazon ElastiCache | Config only |
+| Docker Compose | ECS Fargate | IaC (biggest lift) |
+| Nginx / Let's Encrypt | ALB + CloudFront + ACM | Rework routing |
+
+### Proven: S3 compatibility
+
+Because the storage layer uses the S3 API (`django-storages`), the same
+application code works against **both MinIO and real AWS S3** — only environment
+variables change. This is validated by a smoke test:
+
+```bash
+make s3-smoke
+```
+
+It uploads, lists, downloads, verifies, and deletes a test object using the
+same S3 API the app uses. It can target MinIO locally or real AWS S3 with
+credentials.
+
+### Database migration reuses backups
+
+The `pg_dump` artifacts produced by `make backup-db` restore directly into an
+RDS PostgreSQL instance — the backup system doubles as a migration tool.
+
+### Recommended migration order
+
+```text
+1. Storage  → S3           (config only, reversible)  ← easiest
+2. Cache    → ElastiCache  (config only)
+3. Database → RDS          (dump/restore)
+4. Compute  → ECS Fargate  (IaC)                       ← hardest
+```
+
+Migrate stateful, portable layers first; migrate compute orchestration last.
+
+---
+
 ## ✅ Production Smoke Test
 
 The production smoke test validates the full stack:
@@ -957,8 +1009,9 @@ Common commands:
 | [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Contribution workflow |
 | [`docs/https-haproxy.md`](./docs/https-haproxy.md) | HTTPS with Let's Encrypt + HAProxy SNI |
 | [`docs/monitoring.md`](./docs/monitoring.md) | Monitoring, metrics, logging, and alerting |
-| [Fallback HTTPS Time Synchronization](docs/operations.md#fallback-https-time-synchronization) — deployment operations, monitoring notes, and restricted-network HTTPS time sync fallback |
+| [`docs/operations.md`](docs/operations.md) | Deployment operations, monitoring notes, and restricted-network HTTPS time sync fallback |
 | [`docs/backups.md`](./docs/backups.md) | Database/media backup, restore, retention, scheduling, and offsite strategy |
+| [`docs/cloud-migration.md`](./docs/cloud-migration.md) | AWS migration strategy: S3, RDS, ElastiCache, ECS mapping |
 
 ---
 
@@ -975,6 +1028,7 @@ Common commands:
 - [x] Day 40 — Domain + HTTPS with Let's Encrypt
 - [x] Day 42 — Monitoring and logging basics
 - [x] Day 43 — Database and media backups
+- [x] Day 44 — AWS/cloud migration intro
 
 ### In Progress
 
@@ -982,7 +1036,6 @@ Common commands:
 
 ### Next
 
-- [ ] Day 44 — AWS/cloud migration intro
 - [ ] Day 45 — Final demo prep and interview walkthrough
 
 ---
@@ -1023,6 +1076,11 @@ This project demonstrates:
 - Scheduling daily backups with systemd timers
 - Supporting offsite backup strategies via S3-compatible storage and manual rsync to another VPS
 - Applying disaster recovery thinking with RPO/RTO goals and the 3-2-1 backup principle
+- Designing an application to be cloud-portable from day one (S3-native storage, standard PostgreSQL/Redis)
+- Mapping a self-hosted stack to AWS managed services (S3, RDS, ElastiCache, ECS Fargate)
+- Proving storage portability with an S3-compatibility smoke test (MinIO ↔ AWS S3)
+- Reusing database backup artifacts as an RDS migration path
+- Understanding the cost/control/ops trade-offs of managed cloud services
 
 ---
 
@@ -1033,5 +1091,3 @@ This project is licensed under the MIT License.
 See:
 
 👉 [`LICENSE`](./LICENSE)
-# Day 41 CI/CD test
-# Day 41 test
