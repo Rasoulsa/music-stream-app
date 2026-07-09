@@ -39,3 +39,9 @@ services:
       # Certs + ACME webroot.
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /var/www/certbot:/var/www/certbot
+    # MinIO console — bound to VPS localhost only (never public).
+    # Access via SSH tunnel: ssh -L 9001:localhost:9001 deploy@<vps>
+    # then open http://localhost:9001 in your browser.
+    minio:
+      ports:
+        - "127.0.0.1:9001:9001"
