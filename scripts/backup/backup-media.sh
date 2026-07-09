@@ -16,6 +16,12 @@ need tar
 # 2. Use host `tar` to create a compressed archive.
 #
 # This avoids depending on MinIO's internal on-disk layout and works with real S3 later.
+#
+# IMPORTANT: the mc container runs with the host user's UID/GID (--user) so the
+# exported files are owned by the invoking user (e.g. 'deploy'), not root. This
+# lets the host clean up the temp dir afterwards without needing sudo. A writable
+# MC_CONFIG_DIR under /tmp is provided because a non-root container user cannot
+# write to the default /root/.mc config location.
 : "${AWS_ACCESS_KEY_ID:?AWS_ACCESS_KEY_ID required}"
 : "${AWS_SECRET_ACCESS_KEY:?AWS_SECRET_ACCESS_KEY required}"
 : "${AWS_STORAGE_BUCKET_NAME:=media}"
@@ -27,7 +33,18 @@ OUT_FILE="${OUT_DIR}/media-${TIMESTAMP}.tar.gz"
 TMP_PARENT="${BACKUP_ROOT}/tmp"
 mkdir -p "${TMP_PARENT}"
 TMP_DIR="$(mktemp -d "${TMP_PARENT}/media-export.XXXXXX")"
-trap 'rm -rf "${TMP_DIR}"' EXIT
+
+# Tolerant cleanup: the backup artifact is created and verified before cleanup,
+# so a cleanup failure must never fail the whole run. Warn if it can't remove
+# (e.g. leftover root-owned files from an older run) but keep the exit code clean.
+cleanup_tmp() {
+  if ! rm -rf "${TMP_DIR}" 2>/dev/null; then
+    log "WARNING: could not remove temp dir ${TMP_DIR} (possibly root-owned leftovers)."
+    log "         The backup artifact is safe. Remove temp manually if needed:"
+    log "         sudo rm -rf ${TMP_DIR}"
+  fi
+}
+trap cleanup_tmp EXIT
 
 log "Starting media backup (bucket: ${AWS_STORAGE_BUCKET_NAME})"
 log "  Temp:   ${TMP_DIR}"
@@ -35,10 +52,14 @@ log "  Output: ${OUT_FILE}"
 
 # Mirror bucket into a host-mounted temp directory.
 # The mc image does not include tar, so archiving is done on the host below.
+# --user ensures exported files are owned by the host user (clean removal later).
 docker run --rm \
+  --user "$(id -u):$(id -g)" \
   --network "${DOCKER_NETWORK}" \
   --entrypoint /bin/sh \
   -v "${TMP_DIR}:/export" \
+  -e HOME=/tmp \
+  -e MC_CONFIG_DIR=/tmp/.mc \
   -e MC_HOST_minio="http://${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}@${MINIO_SERVICE}:9000" \
   minio/mc:latest \
   -c "

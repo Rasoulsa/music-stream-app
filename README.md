@@ -19,34 +19,6 @@ storage, and deployment preparation.
 
 ---
 
-## 🚧 Project Status
-
-🟡 **Phase 5 in progress — Deployment & Cloud.**
-
-Current roadmap position:
-
-```text
-Phase 1: Backend Foundation        ✅ Done
-Phase 2: Backend Hardening         ✅ Done
-Phase 3: Frontend                  ✅ Done
-Phase 4: Integration & Production  ✅ Done
-Phase 5: Deployment & Cloud        ✅ Done
-```
-
-Phase 5 progress:
-
-```text
-Day 38 → VPS setup                  ✅ Done
-Day 39 → Manual VPS deploy          ✅ Done
-Day 40 → Domain + HTTPS             ✅ Done
-Day 41 → CI/CD auto-deploy          ✅ Done
-Day 42 → Monitoring + logging       ✅ Done
-Day 43 → Backups                    ✅ Done
-Day 44 → AWS/cloud migration intro  ✅ Done
-```
-
----
-
 ## ✨ Features
 
 - [x] User registration
