@@ -50,14 +50,6 @@ export function AudioPlayer() {
 
   const audioSrc = currentSong ? resolveAudioSrc(currentSong) : '';
 
-  // Debug current song/source
-  useEffect(() => {
-    if (!currentSong) return;
-
-    console.log('[AudioPlayer] currentSong:', currentSong);
-    console.log('[AudioPlayer] resolved audioSrc:', audioSrc);
-  }, [currentSong, audioSrc]);
-
   // When song/source changes, force audio element to reload.
   useEffect(() => {
     const audio = audioRef.current;
@@ -66,10 +58,10 @@ export function AudioPlayer() {
     audio.load();
 
     if (isPlaying) {
-      audio.play().catch((err) => {
-        console.error('[AudioPlayer] play() failed after src change:', err);
-        console.error('[AudioPlayer] audio src:', audio.currentSrc || audio.src);
-        console.error('[AudioPlayer] audio error:', audio.error);
+      audio.play().catch(() => {
+        // Playback can legitimately fail (autoplay policy, decode error,
+        // network blip) — fail safe by resetting play state rather than
+        // leaving the UI showing "playing" while nothing plays.
         setIsPlaying(false);
       });
     }
@@ -81,10 +73,7 @@ export function AudioPlayer() {
     if (!audio || !audioSrc) return;
 
     if (isPlaying) {
-      audio.play().catch((err) => {
-        console.error('[AudioPlayer] play() failed:', err);
-        console.error('[AudioPlayer] src:', audio.currentSrc || audio.src);
-        console.error('[AudioPlayer] error:', audio.error);
+      audio.play().catch(() => {
         setIsPlaying(false);
       });
     } else {
@@ -207,22 +196,10 @@ export function AudioPlayer() {
           ref={audioRef}
           src={audioSrc}
           preload="metadata"
-          onLoadedMetadata={(e) => {
-            console.log('[AudioPlayer] metadata loaded:', e.currentTarget.duration);
-            setDuration(e.currentTarget.duration);
-          }}
-          onCanPlay={() => {
-            console.log('[AudioPlayer] can play:', audioSrc);
-          }}
+          onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
           onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
           onEnded={playNext}
-          onError={(e) => {
-            const audio = e.currentTarget;
-            console.error('[AudioPlayer] audio element error');
-            console.error('[AudioPlayer] src:', audio.currentSrc || audio.src);
-            console.error('[AudioPlayer] error:', audio.error);
-            setIsPlaying(false);
-          }}
+          onError={() => setIsPlaying(false)}
         />
       </div>
     </div>

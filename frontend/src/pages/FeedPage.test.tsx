@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { PlayerProvider } from '../context/PlayerContext';
+import { AudioPlayer } from '../components/AudioPlayer';
 import FeedPage from './FeedPage';
 import * as songsApi from '../api/songs';
 import type { Song } from '../types';
@@ -24,9 +27,19 @@ const sampleSong: Song = {
 };
 
 function renderFeed() {
+  // Stage 1: FeedPage now calls usePlayer(), which throws outside a
+  // PlayerProvider — so the test harness needs one, same as the real
+  // app tree. AudioPlayer is rendered alongside it (as Layout.tsx does
+  // in the real app) so the "plays a song" test below can observe the
+  // persistent player bar actually appearing — AudioPlayer renders
+  // null until a currentSong exists, so it's a no-op for every other
+  // test in this file.
   return render(
     <MemoryRouter>
-      <FeedPage />
+      <PlayerProvider>
+        <FeedPage />
+        <AudioPlayer />
+      </PlayerProvider>
     </MemoryRouter>,
   );
 }
@@ -71,5 +84,30 @@ describe('FeedPage', () => {
     await waitFor(() =>
       expect(screen.getByText(/failed to load feed/i)).toBeInTheDocument(),
     );
+  });
+
+  // Stage 1 regression test: this is the actual bug being fixed —
+  // feed cards were previously read-only (no onPlay wired). Clicking
+  // a card should start playback and the persistent player bar
+  // (AudioPlayer, rendered null until a currentSong exists) should
+  // appear with the same track's title.
+  it('plays a song when its card is clicked', async () => {
+    mockGetFeed.mockResolvedValue({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [sampleSong],
+    });
+
+    renderFeed();
+
+    const title = await screen.findByText('Public Track');
+    await userEvent.click(title);
+
+    // Now that AudioPlayer is in the tree, "Public Track" should
+    // appear twice: once in the card, once in the player bar.
+    await waitFor(() => {
+      expect(screen.getAllByText('Public Track').length).toBeGreaterThan(1);
+    });
   });
 });

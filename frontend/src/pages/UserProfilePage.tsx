@@ -4,12 +4,16 @@
  * Endpoints:
  *   GET /users/:username/        → public profile
  *   GET /users/:username/songs/  → their public songs
+ *
+ * fix: cards now wire into the global player (previously
+ * read-only — see docs/frontend-audit.md).
  */
 
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getPublicProfile, getUserPublicSongs } from '../api/users';
 import { SongCard } from '../components/SongCard';
+import { usePlayer } from '../hooks/usePlayer';
 import type { PublicProfile, Song } from '../types';
 
 export default function UserProfilePage() {
@@ -18,6 +22,8 @@ export default function UserProfilePage() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+
+  const { currentSong, playSong } = usePlayer();
 
   useEffect(() => {
     if (!username) return;
@@ -132,7 +138,12 @@ export default function UserProfilePage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {songs.map((song) => (
-            <SongCard key={song.id} song={song} />
+            <SongCard
+              key={song.id}
+              song={song}
+              isActive={currentSong?.id === song.id}
+              onPlay={(s) => playSong(s, songs)}
+            />
           ))}
         </div>
       )}

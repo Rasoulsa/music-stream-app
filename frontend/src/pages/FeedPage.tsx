@@ -2,11 +2,16 @@
  * Public feed — browse all public songs. Visible to everyone.
  *
  * Uses GET /feed/ (dedicated endpoint, cached on backend for default view).
+ *
+ * fix: cards now wire into the global player (previously
+ * read-only — see docs/frontend-audit.md). Uses the currently-loaded
+ * `songs` list as the play queue, same pattern as SongList.tsx.
  */
 
 import { useEffect, useState, useCallback } from 'react';
 import { getFeed } from '../api/songs';
 import { SongCard } from '../components/SongCard';
+import { usePlayer } from '../hooks/usePlayer';
 import type { Song } from '../types';
 
 export default function FeedPage() {
@@ -15,6 +20,8 @@ export default function FeedPage() {
   const [ordering, setOrdering] = useState('-created_at');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const { currentSong, playSong } = usePlayer();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -105,12 +112,17 @@ export default function FeedPage() {
         </div>
       )}
 
-      {/* Grid */}
+      {/* Grid — Stage 1 fix: cards are now playable, wired to the
+          global player queue using the currently-loaded feed list. */}
       {!loading && !error && songs.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {songs.map((song) => (
-            <SongCard key={song.id} song={song} />
-            // no isActive / onPlay → read-only cards
+            <SongCard
+              key={song.id}
+              song={song}
+              isActive={currentSong?.id === song.id}
+              onPlay={(s) => playSong(s, songs)}
+            />
           ))}
         </div>
       )}
