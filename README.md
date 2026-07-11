@@ -412,16 +412,6 @@ The backup directory is git-ignored except for `backups/.gitignore`.
 See [`docs/deployment.md`](./docs/deployment.md) for VPS setup and deployment
 steps.
 
-Phase 5, Deployment & Cloud, is in progress:
-
-- ✅ Day 38 — VPS setup: server hardening, Docker, firewall
-- ✅ Day 39 — Manual VPS deploy
-- ✅ Day 40 — Domain + HTTPS (Let's Encrypt + HAProxy SNI) — [`docs/https-haproxy.md`](./docs/https-haproxy.md)
-- ✅ Day 41 — CI/CD auto-deploy to VPS
-- ✅ Day 42 — Monitoring and logging basics
-- ✅ Day 43 — Database and media backups
-- ✅ Day 44 — AWS/cloud migration intro
-
 The deployment plan starts with a VPS-based production environment and later
 moves toward cloud deployment concepts such as managed storage, managed
 databases, monitoring, and automated delivery.
@@ -982,6 +972,8 @@ Common commands:
 | [`docs/operations.md`](docs/operations.md) | Deployment operations, monitoring notes, and restricted-network HTTPS time sync fallback |
 | [`docs/backups.md`](./docs/backups.md) | Database/media backup, restore, retention, scheduling, and offsite strategy |
 | [`docs/cloud-migration.md`](./docs/cloud-migration.md) | AWS migration strategy: S3, RDS, ElastiCache, ECS mapping |
+| [`docs/frontend-audit.md`](./docs/frontend-audit.md) | Frontend UI/UX audit and SoundCloud-parity roadmap |
+
 
 ---
 
