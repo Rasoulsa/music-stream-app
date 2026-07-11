@@ -25,9 +25,7 @@ function resolveAudioSrc(song: Song): string {
   if (!raw) return '';
 
   const url =
-    raw.startsWith('http://') ||
-    raw.startsWith('https://') ||
-    raw.startsWith('/')
+    raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')
       ? new URL(raw, window.location.origin)
       : new URL(`/music-media/${raw}`, window.location.origin);
 

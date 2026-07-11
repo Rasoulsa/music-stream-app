@@ -14,20 +14,20 @@ For the full system architecture, see:
 
 ## Tech Stack
 
-| Area | Technology |
-|---|---|
-| Framework | React |
-| Language | TypeScript |
-| Build tool | Vite |
-| Routing | React Router |
-| API client | Axios |
-| Server state | TanStack Query |
-| Styling | CSS / Tailwind CSS |
-| Authentication | JWT access/refresh tokens |
-| Testing | Vitest, React Testing Library |
-| Linting | ESLint |
-| Formatting | Prettier |
-| Containerization | Docker |
+| Area             | Technology                    |
+| ---------------- | ----------------------------- |
+| Framework        | React                         |
+| Language         | TypeScript                    |
+| Build tool       | Vite                          |
+| Routing          | React Router                  |
+| API client       | Axios                         |
+| Server state     | TanStack Query                |
+| Styling          | CSS / Tailwind CSS            |
+| Authentication   | JWT access/refresh tokens     |
+| Testing          | Vitest, React Testing Library |
+| Linting          | ESLint                        |
+| Formatting       | Prettier                      |
+| Containerization | Docker                        |
 
 ---
 
@@ -243,13 +243,13 @@ The frontend talks to the backend API through Axios.
 
 Important API files:
 
-| File | Purpose |
-|---|---|
-| `src/api/client.ts` | Shared Axios client |
-| `src/api/auth.ts` | Login/register/auth API calls |
-| `src/api/songs.ts` | Song list, upload, retrieve APIs |
-| `src/api/users.ts` | Profile and public user APIs |
-| `src/api/health.ts` | Backend health check API |
+| File                | Purpose                          |
+| ------------------- | -------------------------------- |
+| `src/api/client.ts` | Shared Axios client              |
+| `src/api/auth.ts`   | Login/register/auth API calls    |
+| `src/api/songs.ts`  | Song list, upload, retrieve APIs |
+| `src/api/users.ts`  | Profile and public user APIs     |
+| `src/api/health.ts` | Backend health check API         |
 
 The backend API is versioned under:
 
@@ -259,17 +259,17 @@ The backend API is versioned under:
 
 Important backend routes used by the frontend:
 
-| Endpoint | Purpose |
-|---|---|
-| `/api/v1/auth/register/` | Register user |
-| `/api/v1/auth/login/` | Login user |
-| `/api/v1/auth/refresh/` | Refresh JWT token |
-| `/api/v1/songs/` | List/upload songs |
-| `/api/v1/songs/mine/` | Current user's songs |
-| `/api/v1/feed/` | Public feed |
-| `/api/v1/users/me/` | Current user's profile |
-| `/api/v1/users/<username>/` | Public profile |
-| `/api/v1/users/<username>/songs/` | Public user songs |
+| Endpoint                          | Purpose                |
+| --------------------------------- | ---------------------- |
+| `/api/v1/auth/register/`          | Register user          |
+| `/api/v1/auth/login/`             | Login user             |
+| `/api/v1/auth/refresh/`           | Refresh JWT token      |
+| `/api/v1/songs/`                  | List/upload songs      |
+| `/api/v1/songs/mine/`             | Current user's songs   |
+| `/api/v1/feed/`                   | Public feed            |
+| `/api/v1/users/me/`               | Current user's profile |
+| `/api/v1/users/<username>/`       | Public profile         |
+| `/api/v1/users/<username>/songs/` | Public user songs      |
 
 ---
 
@@ -294,13 +294,13 @@ Authorization: Bearer <access-token>
 
 Relevant files:
 
-| File | Purpose |
-|---|---|
-| `src/context/AuthContext.tsx` | Auth state and actions |
-| `src/hooks/useAuth.ts` | Auth hook |
-| `src/utils/token.ts` | Token helpers |
-| `src/api/auth.ts` | Auth API calls |
-| `src/components/ProtectedRoute.tsx` | Route protection |
+| File                                | Purpose                |
+| ----------------------------------- | ---------------------- |
+| `src/context/AuthContext.tsx`       | Auth state and actions |
+| `src/hooks/useAuth.ts`              | Auth hook              |
+| `src/utils/token.ts`                | Token helpers          |
+| `src/api/auth.ts`                   | Auth API calls         |
+| `src/components/ProtectedRoute.tsx` | Route protection       |
 
 ---
 
@@ -310,12 +310,12 @@ The app includes a global audio player.
 
 Relevant files:
 
-| File | Purpose |
-|---|---|
-| `src/components/AudioPlayer.tsx` | Player UI |
-| `src/context/PlayerContext.tsx` | Global player state |
-| `src/hooks/usePlayer.ts` | Player hook |
-| `src/types/player.ts` | Player-related TypeScript types |
+| File                             | Purpose                         |
+| -------------------------------- | ------------------------------- |
+| `src/components/AudioPlayer.tsx` | Player UI                       |
+| `src/context/PlayerContext.tsx`  | Global player state             |
+| `src/hooks/usePlayer.ts`         | Player hook                     |
+| `src/types/player.ts`            | Player-related TypeScript types |
 
 The backend and Nginx support HTTP Range requests so browser seeking works for
 uploaded audio files.
@@ -328,12 +328,12 @@ Song upload is handled from the frontend using multipart form data.
 
 Relevant files:
 
-| File | Purpose |
-|---|---|
-| `src/pages/UploadPage.tsx` | Upload page |
-| `src/hooks/useUploadSong.ts` | Upload logic |
+| File                          | Purpose         |
+| ----------------------------- | --------------- |
+| `src/pages/UploadPage.tsx`    | Upload page     |
+| `src/hooks/useUploadSong.ts`  | Upload logic    |
 | `src/utils/fileValidation.ts` | File validation |
-| `src/api/songs.ts` | Upload API call |
+| `src/api/songs.ts`            | Upload API call |
 
 Upload flow:
 
@@ -352,16 +352,16 @@ User selects audio file
 
 Main page components:
 
-| Page | Purpose |
-|---|---|
-| `HomePage.tsx` | Landing/home page |
-| `LoginPage.tsx` | Login form |
-| `RegisterPage.tsx` | Registration form |
-| `FeedPage.tsx` | Public feed |
-| `UploadPage.tsx` | Upload song |
-| `ProfilePage.tsx` | Current user profile |
-| `UserProfilePage.tsx` | Public user profile |
-| `NotFoundPage.tsx` | 404 page |
+| Page                  | Purpose              |
+| --------------------- | -------------------- |
+| `HomePage.tsx`        | Landing/home page    |
+| `LoginPage.tsx`       | Login form           |
+| `RegisterPage.tsx`    | Registration form    |
+| `FeedPage.tsx`        | Public feed          |
+| `UploadPage.tsx`      | Upload song          |
+| `ProfilePage.tsx`     | Current user profile |
+| `UserProfilePage.tsx` | Public user profile  |
+| `NotFoundPage.tsx`    | 404 page             |
 
 Routes are managed in:
 

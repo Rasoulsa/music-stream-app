@@ -8,6 +8,7 @@ features).
 ## Problems found
 
 ### Broken functionality
+
 - **Feed and public profile song cards were read-only.** `FeedPage` and
   `UserProfilePage` rendered `<SongCard>` without an `onPlay` handler, so
   the two most-visited public pages couldn't actually play music — only
@@ -20,6 +21,7 @@ features).
   decision (migrate onto `useQuery`, or remove the dependency).
 
 ### Code quality
+
 - TypeScript is not running in strict mode (`tsconfig.app.json` has no
   `"strict": true`) — tracked for Stage 2.
 - No accessibility linting (`eslint-plugin-jsx-a11y` not installed) —
@@ -37,6 +39,7 @@ features).
   in Stage 3 on which one to keep.
 
 ### SEO / polish
+
 - `index.html` had the literal Vite scaffold `<title>frontend</title>`,
   no meta description, no Open Graph/Twitter card tags. Fixed with a real
   title, description, and social preview tags. The `og:image` currently
@@ -45,6 +48,7 @@ features).
   on Discord/Slack/Twitter).
 
 ## Verification
+
 - `npm run lint`
 - `npm test` — includes 2 new regression tests (`FeedPage`,
   `UserProfilePage`) specifically covering the play-wiring bug fix
@@ -52,6 +56,7 @@ features).
   page now starts playback and the card shows the active/playing state
 
 ## Next stages
+
 See the roadmap in the project README / journal for Stage 2 (TS strict
 mode, a11y lint, React Query decision), Stage 3 (SearchBar decision,
 `/songs/:id` pages, likes, drag-and-drop upload), Stage 4 (waveform

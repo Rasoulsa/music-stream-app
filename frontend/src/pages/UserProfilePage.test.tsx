@@ -75,7 +75,9 @@ describe('UserProfilePage', () => {
 
     renderProfile('doesnotexist');
 
-    await waitFor(() => expect(screen.getByText(/user not found/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/user not found/i)).toBeInTheDocument(),
+    );
   });
 
   // Stage 1 regression test — same bug class as FeedPage: public
